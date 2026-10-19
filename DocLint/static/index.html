@@ -2,12 +2,12 @@
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#183f35" />
-    <title>DocLint — Chỉnh bố cục, giữ trọn nội dung</title>
+    <title>DocLint V1 · Hoàn thiện báo cáo Word</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23183f35'/%3E%3Ctext x='9' y='29' fill='white' font-size='27' font-family='serif'%3ED%3C/text%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23183f35'/%3E%3Ctext x='9' y='29' fill='white' font-size='27'%3ED%3C/text%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="/static/styles.css" />
     <script src="/static/app.js" defer></script>
@@ -15,75 +15,42 @@
   <body>
     <header class="site-header wrap">
       <a class="brand" href="/" aria-label="DocLint, trang chủ"
-        ><span class="brand-mark"
-          >D<span
-            ><svg
-              class="arrow-icon"
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 12 12 4M4 4h8v8"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              /></svg></span></span
-        >DocLint<span class="beta">BETA</span></a
+        ><span class="brand-mark">D</span>DocLint<span class="beta">V1</span></a
       >
       <nav aria-label="Điều hướng">
-        <a href="#how-it-works"
-          >Cách hoạt động
-          <span aria-hidden="true"
-            ><svg
-              class="arrow-icon"
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 12 12 4M4 4h8v8"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              /></svg></span></a
-        ><a href="#privacy">Quyền riêng tư</a>
+        <a href="#how-it-works">Quy trình</a
+        ><a href="#privacy">Dữ liệu của bạn</a>
       </nav>
-      <span class="header-note"><i></i> Dành cho tài liệu chỉn chu</span>
+      <span class="header-note"
+        ><i></i> Không gọi API AI · Không cần tài khoản</span
+      >
     </header>
-
     <main class="wrap">
-      <section class="hero" aria-labelledby="hero-title">
+      <section class="hero">
         <div class="hero-copy">
           <span class="eyebrow"
-            ><span aria-hidden="true">✳</span> TỪ BẢN THẢO ĐẾN BẢN CHỈN
-            CHU</span
+            >BẢN THẢO CỦA BẠN, MỘT DIỆN MẠO CHỈN CHU HƠN</span
           >
-          <h1 id="hero-title">
-            Chỉnh bố cục.<br /><em>Giữ trọn nội dung.</em>
-          </h1>
+          <h1>Để báo cáo<br /><em>vào đúng khuôn.</em></h1>
           <p class="hero-description">
-            Một tài liệu đẹp bắt đầu từ những chi tiết nhỏ.<br
+            Không chỉ đổi phông. Phục hồi cấu trúc, chăm chút bảng và ảnh,<br
               class="desktop-break"
             />
-            Để DocLint căn lề, đồng bộ phông chữ và giãn dòng —<br
+            xem từng trang trước–sau. Bạn duyệt thay đổi,<br
               class="desktop-break"
             />
-            bạn tập trung vào điều muốn nói.
+            DocLint giữ nội dung và hoàn thiện phần trình bày.
           </p>
           <div class="trust-row">
-            <span><b>✓</b> Không viết lại văn bản</span
-            ><span><b>✓</b> Không ghi đè tệp gốc</span>
+            <span><b>✓</b> Đối chiếu nội dung</span
+            ><span><b>✓</b> Giữ vùng bạn khóa</span
+            ><span><b>✓</b> Không ghi đè bản gốc</span>
           </div>
         </div>
         <div class="hero-art" aria-hidden="true">
-          <span class="art-caption">MỘT CHÚT GỌN GÀNG. MỘT KHÁC BIỆT LỚN.</span>
+          <span class="art-caption"
+            >CÓ CẤU TRÚC. CÓ KIỂM CHỨNG. CÓ BẠN KIỂM SOÁT.</span
+          >
           <div class="paper paper-before">
             <span class="paper-kicker">BẢN THẢO</span>
             <div class="fake-title"></div>
@@ -94,10 +61,9 @@
             <div class="line short"></div>
             <div class="line uneven"></div>
             <div class="line"></div>
-            <div class="line short"></div>
           </div>
           <div class="paper paper-after">
-            <span class="paper-kicker">CHỈN CHU HƠN</span>
+            <span class="paper-kicker">BẢN HOÀN THIỆN</span>
             <div class="fake-title"></div>
             <div class="tiny-rule"></div>
             <div class="line"></div>
@@ -107,24 +73,32 @@
             <div class="fake-subtitle"></div>
             <div class="line"></div>
             <div class="line"></div>
-            <div class="line short"></div>
             <span class="paper-page">01</span>
           </div>
           <span class="art-check"
-            >✓ <span>Đúng định dạng.<br />Vẫn là lời của bạn.</span></span
-          >
-          <span class="art-disclaimer"
-            >Minh họa định dạng, không phải bản xem trước tài liệu.</span
+            >✓ <span>Chỉn chu hơn.<br />Vẫn là lời của bạn.</span></span
+          ><span class="art-disclaimer"
+            >Minh họa thiết kế. Xem trước tài liệu thật xuất hiện sau khi tải
+            lên.</span
           >
         </div>
       </section>
-
-      <section class="workspace" aria-label="Chuẩn hóa tài liệu">
+      <ol class="workflow" aria-label="Các bước">
+        <li class="current" id="step-upload"><b>01</b> Tải bản thảo</li>
+        <li id="step-review"><b>02</b> Duyệt phương án</li>
+        <li id="step-result"><b>03</b> Xem & tải kết quả</li>
+      </ol>
+      <div id="error-box" class="error-box" role="alert" hidden></div>
+      <section
+        class="workspace"
+        id="upload-workspace"
+        aria-label="Tải bản thảo"
+      >
         <div class="upload-panel">
           <div class="section-label">
             <span class="step-number">01</span>
             <h2>Tài liệu của bạn</h2>
-            <span class="muted small">Bắt đầu tại đây</span>
+            <span class="muted small">Báo cáo một cột · DOCX</span>
           </div>
           <form id="lint-form">
             <div id="drop-zone" class="drop-zone">
@@ -132,151 +106,277 @@
                 id="file-input"
                 name="file"
                 type="file"
-                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                accept=".docx"
                 aria-describedby="upload-hint"
-              />
-              <label for="file-input" class="drop-content">
-                <span class="upload-icon" aria-hidden="true"
+              /><label for="file-input" class="drop-content"
+                ><span class="upload-icon" aria-hidden="true"
                   ><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
                     <path
-                      d="M10 3h9l6 6v17a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z"
+                      d="M10 3h9l6 6v17a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z M18 3v7h7M16 23V14m-4 4 4-4 4 4"
                       stroke="currentColor"
                       stroke-width="1.5"
-                    />
-                    <path
-                      d="M18 3v7h7M16 23V14m-4 4 4-4 4 4"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    /></svg
-                ></span>
-                <strong>Kéo thả tài liệu vào đây</strong>
-                <span
+                    /></svg></span
+                ><strong>Kéo thả bản thảo vào đây</strong
+                ><span
                   >hoặc
                   <span class="text-link">chọn tệp từ máy tính</span></span
-                >
-                <span id="upload-hint" class="file-hint"
-                  >Chỉ tệp .DOCX · Tối đa 15 MB</span
-                >
-              </label>
+                ><span id="upload-hint" class="file-hint"
+                  >Tối đa 15 MB · Không cần gửi đến AI</span
+                ></label
+              >
             </div>
             <div id="selected-file" class="selected-file" hidden>
-              <span class="file-badge" aria-hidden="true">W</span>
+              <span class="file-badge">W</span>
               <div>
                 <strong id="filename"></strong
-                ><span id="filesize" class="muted small"></span>
+                ><span id="filesize" class="small muted"></span>
               </div>
               <button
                 id="remove-file"
-                type="button"
                 class="icon-button"
+                type="button"
                 aria-label="Bỏ tệp đã chọn"
               >
                 ×
               </button>
             </div>
-            <div id="error-box" class="error-box" role="alert" hidden></div>
             <button
               id="submit-button"
               class="button primary"
               type="submit"
               disabled
             >
-              <span>Chuẩn hóa tài liệu</span
-              ><span aria-hidden="true"
-                ><svg
-                  class="arrow-icon"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M4 12 12 4M4 4h8v8"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  /></svg
-              ></span>
+              Phân tích tài liệu <span aria-hidden="true">→</span>
             </button>
             <p class="under-button">
-              <svg
-                width="13"
-                height="14"
-                viewBox="0 0 14 16"
-                fill="none"
-                aria-hidden="true"
+              Bản gốc, bản dựng và kết quả được tạm lưu tối đa 30 phút.
+            </p>
+            <p class="small muted demo-link">
+              Chưa có tệp để thử?
+              <a
+                class="text-link"
+                href="/static/demo.docx"
+                download="doclint-demo.docx"
+                >Tải báo cáo mẫu có lỗi bố cục</a
               >
-                <rect
-                  x="2"
-                  y="7"
-                  width="10"
-                  height="8"
-                  rx="2"
-                  stroke="currentColor"
-                />
-                <path d="M4 7V4a3 3 0 0 1 6 0v3" stroke="currentColor" />
-              </svg>
-              Tệp kết quả hết hạn sau 30 phút. Bạn có thể xóa ngay.
             </p>
           </form>
-          <div id="processing" class="processing" role="status" hidden>
-            <span class="spinner" aria-hidden="true"></span>
-            <div>
-              <strong>Đang chuẩn hóa & đối chiếu nội dung</strong>
-              <p>Giữ cửa sổ này mở trong khi DocLint xử lý tài liệu.</p>
-            </div>
-          </div>
         </div>
-        <aside class="settings-panel" aria-labelledby="settings-title">
+        <aside class="settings-panel">
           <div class="section-label">
-            <span class="step-number">02</span>
-            <h2 id="settings-title">Kiểu trình bày</h2>
+            <span class="step-number">◇</span>
+            <h2>Thiết kế cho báo cáo thật</h2>
           </div>
-          <label for="profile-select" class="field-label"
-            >Chọn mẫu định dạng</label
-          >
-          <select id="profile-select" form="lint-form" name="profile" disabled>
-            <option>Đang tải mẫu…</option>
-          </select>
-          <p id="profile-description" class="muted small profile-description">
-            Lấy cấu hình định dạng từ máy chủ.
+          <ul class="feature-list">
+            <li>
+              <strong>Hiểu vai trò từng phần</strong>
+              <p>
+                Tiêu đề, thân bài, bảng, ảnh, chú thích và vùng cần giữ nguyên.
+              </p>
+            </li>
+            <li>
+              <strong>Bạn duyệt trước khi sửa</strong>
+              <p>Không đoán rồi đổi tên chương, số liệu hoặc câu chữ.</p>
+            </li>
+            <li>
+              <strong>Xem được từng trang</strong>
+              <p>Dựng PDF cục bộ; so sánh bản gốc và bản sau chuẩn hóa.</p>
+            </li>
+          </ul>
+          <p id="capability-note" class="safe-note">
+            Đang kiểm tra bộ dựng tài liệu…
           </p>
-          <dl class="profile-specs">
-            <div>
-              <dt>Khổ giấy</dt>
-              <dd>A4, dọc</dd>
-            </div>
-            <div>
-              <dt>Phông chữ</dt>
-              <dd id="spec-font">—</dd>
-            </div>
-            <div>
-              <dt>Cỡ chữ thân bài</dt>
-              <dd id="spec-size">—</dd>
-            </div>
-            <div>
-              <dt>Giãn dòng</dt>
-              <dd id="spec-spacing">—</dd>
-            </div>
-          </dl>
-          <div class="margin-note">
-            <span class="small muted">LỀ TRANG</span>
-            <p id="spec-margins">—</p>
-          </div>
-          <div class="safe-note">
-            <span aria-hidden="true">◇</span>
-            <p>
-              <strong>Sửa có chừng mực.</strong> Giữ cấu trúc bìa, tiêu đề, bảng
-              và công thức. Bố cục khó suy đoán được đánh dấu để bạn xem lại.
-            </p>
-          </div>
         </aside>
       </section>
-
+      <section id="processing" class="job-progress" aria-live="polite" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <div>
+          <strong id="progress-stage">Đang chờ xử lý</strong>
+          <p id="progress-detail">
+            Bạn có thể giữ trang này mở hoặc quay lại trong thời hạn phiên.
+          </p>
+        </div>
+        <button id="cancel-job" class="button subtle" type="button">
+          Hủy & xóa tệp
+        </button>
+      </section>
+      <section id="session-bar" class="session-bar" hidden>
+        <span id="session-name"></span><span id="expiry-label"></span
+        ><button id="delete-session" class="text-button" type="button">
+          Xóa phiên ngay
+        </button>
+      </section>
+      <section id="review" class="review" aria-labelledby="review-title" hidden>
+        <div class="section-label">
+          <span class="step-number">02</span>
+          <h2 id="review-title">Phương án trình bày của bạn</h2>
+          <span class="version-pill">BẢN GỐC LUÔN ĐƯỢC GIỮ RIÊNG</span>
+        </div>
+        <div id="analysis-summary" class="analysis-summary"></div>
+        <p class="muted">
+          Đề xuất theo quy tắc có thể cần điều chỉnh. Chọn những mục bạn đồng ý;
+          các đoạn còn phân vân sẽ được giữ nguyên.
+        </p>
+        <div class="plan-grid">
+          <div class="plan-main">
+            <details open class="plan-card">
+              <summary>Cây tiêu đề <span id="heading-count"></span></summary>
+              <p class="small muted">
+                Đề mục đã có Heading được giữ cấp sẵn có. Đề xuất mới chỉ áp
+                dụng khi bạn chọn cấp. Không tự đổi tên hoặc đánh lại số đề mục.
+              </p>
+              <button id="approve-headings" class="button subtle" type="button">
+                Duyệt các đề mục có số theo cấp đề xuất
+              </button>
+              <div id="outline-list" class="outline-list"></div>
+            </details>
+            <details class="plan-card">
+              <summary>Căn bố cục bằng Space/Tab</summary>
+              <p class="small muted">
+                Bật chế độ làm sạch ký tự để duyệt. Chỉ thay phần đầu đoạn;
+                không xóa Tab giữa nội dung. Với trường hợp khó, chọn rõ ý đồ
+                thay vì để hệ thống đoán.
+              </p>
+              <div id="layout-review"></div>
+            </details>
+            <details class="plan-card">
+              <summary>Bảng và chú thích cần duyệt</summary>
+              <div id="table-review"></div>
+              <div id="caption-review"></div>
+            </details>
+            <details class="plan-card">
+              <summary>
+                Khóa vùng tài liệu <span id="lock-count"></span>
+              </summary>
+              <p class="small muted">
+                Vùng khóa giữ nguyên thuộc tính và nội dung. Lề của section dùng
+                chung cũng được giữ nếu có vùng khóa.
+              </p>
+              <label class="check-line"
+                ><input id="preserve-references" type="checkbox" checked /> Giữ
+                nguyên phần tài liệu tham khảo</label
+              ><label class="check-line"
+                ><input id="preserve-appendices" type="checkbox" checked /> Giữ
+                nguyên phần phụ lục</label
+              ><label for="block-search" class="field-label"
+                >Tìm đoạn/bảng để khóa riêng</label
+              ><input
+                id="block-search"
+                type="search"
+                placeholder="Nhập nội dung hoặc mã khối…"
+              />
+              <div id="block-locks" class="block-locks"></div>
+              <p id="lock-limit" class="small muted"></p>
+            </details>
+            <details class="plan-card">
+              <summary>Xem bản gốc</summary>
+              <div id="original-review-note" class="small muted"></div>
+              <div class="page-tools">
+                <button
+                  id="review-prev"
+                  type="button"
+                  class="button subtle"
+                  aria-label="Trang gốc trước"
+                >
+                  ←</button
+                ><span id="review-page-label"></span
+                ><button
+                  id="review-next"
+                  type="button"
+                  class="button subtle"
+                  aria-label="Trang gốc sau"
+                >
+                  →
+                </button>
+              </div>
+              <img
+                id="review-original-image"
+                class="page-image"
+                alt="Bản gốc của tài liệu"
+                loading="lazy"
+              />
+            </details>
+          </div>
+          <aside class="plan-sidebar">
+            <div class="plan-card">
+              <label for="profile-select" class="field-label"
+                >MẪU TRÌNH BÀY</label
+              ><select id="profile-select" disabled></select>
+              <p id="profile-description" class="small muted"></p>
+              <dl class="profile-specs">
+                <div>
+                  <dt>Phông</dt>
+                  <dd id="spec-font"></dd>
+                </div>
+                <div>
+                  <dt>Cỡ thân bài</dt>
+                  <dd id="spec-size"></dd>
+                </div>
+                <div>
+                  <dt>Giãn dòng</dt>
+                  <dd id="spec-spacing"></dd>
+                </div>
+              </dl>
+              <p id="spec-margins" class="small muted"></p>
+            </div>
+            <div class="plan-card">
+              <label for="mode-select" class="field-label">PHẠM VI SỬA</label
+              ><select id="mode-select">
+                <option value="strict">Giữ nguyên ký tự căn bố cục</option>
+                <option value="layout">
+                  Cho phép làm sạch ký tự căn bố cục
+                </option>
+              </select>
+              <p id="mode-description" class="small muted">
+                Chỉ sửa thuộc tính. Không xóa Space, Tab hoặc đoạn trống.
+              </p>
+              <label class="check-line"
+                ><input id="normalize-tables" type="checkbox" checked /> Chuẩn
+                hóa bảng đơn giản</label
+              ><label class="check-line"
+                ><input id="normalize-images" type="checkbox" checked /> Căn và
+                thu ảnh trong dòng vừa vùng in</label
+              >
+            </div>
+            <div class="plan-card">
+              <label for="cover-select" class="field-label">BÌA</label
+              ><select id="cover-select">
+                <option value="keep">Giữ nguyên bìa đã xác định</option>
+                <option value="academic">Dàn bìa học thuật</option>
+                <option value="minimal">Dàn bìa tối giản</option></select
+              ><label for="cover-end" class="field-label spaced"
+                >Xác nhận bìa kết thúc tại</label
+              ><select id="cover-end"></select>
+              <p class="small muted">
+                Chỉ dùng thông tin hiện có; không thêm tên người, ngày tháng
+                hoặc logo.
+              </p>
+            </div>
+            <div class="plan-card">
+              <label for="toc-select" class="field-label">MỤC LỤC</label
+              ><select id="toc-select">
+                <option value="keep">Giữ mục lục hiện tại</option>
+                <option value="insert">Tạo mục lục tự động</option>
+                <option value="replace">Thay mục lục đã nhận diện</option>
+              </select>
+              <p id="toc-region-note" class="small muted"></p>
+              <label class="check-line"
+                ><input id="page-numbers" type="checkbox" /> Chuẩn hóa số trang
+                Ả Rập</label
+              ><label class="check-line"
+                ><input id="hide-first-page" type="checkbox" checked /> Ẩn trang
+                đầu; trang thứ hai bắt đầu số 1</label
+              >
+            </div>
+            <button id="format-button" class="button primary" type="button">
+              Dàn trang theo phương án này →
+            </button>
+            <p class="small muted">
+              Áp dụng từ bản gốc mỗi lần; bạn có thể quay lại đổi phương án.
+            </p>
+          </aside>
+        </div>
+      </section>
       <section
         id="results"
         class="results"
@@ -286,117 +386,177 @@
       >
         <div class="results-header">
           <div>
-            <span class="eyebrow">TÀI LIỆU ĐÃ SẴN SÀNG</span>
-            <h2 id="results-title">Gọn gàng hơn. Vẫn nguyên vẹn.</h2>
+            <span class="eyebrow">BẢN RIÊNG CỦA BẠN</span>
+            <h2 id="results-title">Gọn gàng hơn. Có kiểm chứng.</h2>
             <p id="result-name" class="muted"></p>
           </div>
-          <div class="verified">
-            <span aria-hidden="true">✓</span> Đã đối chiếu toàn vẹn nội dung
-          </div>
+          <span class="verified">✓ Đã đối chiếu nội dung được bảo vệ</span>
         </div>
+        <div id="partial-note" class="notice" hidden></div>
         <div class="result-stats">
           <div>
-            <span class="stat-label">THUỘC TÍNH KHỚP MẪU</span
-            ><strong
-              ><span id="score-before"></span
-              ><span class="stat-arrow" aria-hidden="true">→</span
-              ><span id="score-after"></span
-            ></strong>
-            <p id="score-scope"></p>
-          </div>
-          <div>
-            <span class="stat-label">THUỘC TÍNH ĐÃ ĐỔI</span
-            ><strong id="change-count"></strong>
-            <p>Trong phạm vi tự động chuẩn hóa</p>
-          </div>
-          <div>
-            <span class="stat-label">MỤC CẦN XEM LẠI</span
-            ><strong id="warning-count"></strong>
+            <span class="stat-label">TÀI LIỆU</span
+            ><strong id="result-pages"></strong>
             <p id="document-stats"></p>
           </div>
+          <div>
+            <span class="stat-label">THAY ĐỔI THỰC HIỆN</span
+            ><strong id="change-count"></strong>
+            <p>Chi tiết trong nhật ký tải xuống</p>
+          </div>
+          <div>
+            <span class="stat-label">CẦN XEM LẠI</span
+            ><strong id="warning-count"></strong>
+            <p>Không phải chứng nhận đạt mọi quy chuẩn</p>
+          </div>
         </div>
+        <div id="checks-list" class="checks-list"></div>
         <div class="report-columns">
           <div>
-            <h3><span class="dot green"></span> Đã chuẩn hóa</h3>
+            <h3><span class="dot green"></span> Đã thực hiện</h3>
             <ul id="changes-list" class="report-list"></ul>
           </div>
           <div>
-            <h3><span class="dot amber"></span> Để bạn xem lại</h3>
+            <h3><span class="dot amber"></span> Phần cần xem lại</h3>
             <ul id="warnings-list" class="report-list"></ul>
           </div>
         </div>
+        <div class="comparison-header">
+          <h3>Trước & sau, theo từng trang</h3>
+          <label class="check-line"
+            ><input id="sync-pages" type="checkbox" checked /> Cùng số
+            trang</label
+          >
+        </div>
+        <p class="small muted">
+          Sau khi dàn lại, nội dung có thể chuyển trang; cùng số trang không
+          đồng nghĩa cùng nội dung. PDF dùng LibreOffice, có thể khác Word.
+        </p>
+        <div class="jump-tools">
+          <label for="jump-page" class="field-label"
+            >Chuyển đến trang đã định vị thay đổi/cảnh báo</label
+          ><select id="jump-page">
+            <option value="">Chọn trang…</option>
+          </select>
+        </div>
+        <div class="comparison-grid">
+          <section>
+            <div class="page-tools">
+              <strong>Trước</strong
+              ><button
+                id="original-prev"
+                type="button"
+                class="button subtle"
+                aria-label="Trang trước của bản gốc"
+              >
+                ←</button
+              ><span id="original-label"></span
+              ><button
+                id="original-next"
+                type="button"
+                class="button subtle"
+                aria-label="Trang sau của bản gốc"
+              >
+                →
+              </button>
+            </div>
+            <p id="original-note" class="small muted"></p>
+            <img
+              id="original-image"
+              class="page-image"
+              alt="Trang bản gốc"
+              loading="lazy"
+            />
+          </section>
+          <section>
+            <div class="page-tools">
+              <strong>Sau</strong
+              ><button
+                id="result-prev"
+                type="button"
+                class="button subtle"
+                aria-label="Trang trước của bản kết quả"
+              >
+                ←</button
+              ><span id="result-label"></span
+              ><button
+                id="result-next"
+                type="button"
+                class="button subtle"
+                aria-label="Trang sau của bản kết quả"
+              >
+                →
+              </button>
+            </div>
+            <p id="result-note" class="small muted"></p>
+            <img
+              id="result-image"
+              class="page-image"
+              alt="Trang bản đã chuẩn hóa"
+              loading="lazy"
+            />
+          </section>
+        </div>
         <div class="download-bar">
-          <div>
-            <strong>Tải bản đã chỉnh bố cục</strong>
-            <p id="expiry-label" class="muted small"></p>
-          </div>
+          <button id="revise-button" type="button" class="button subtle">
+            ← Đổi phương án
+          </button>
           <div class="download-actions">
-            <button id="delete-session" class="button subtle" type="button">
-              Xóa kết quả ngay</button
-            ><button id="download-button" class="button primary" type="button">
-              Tải tệp Word <span aria-hidden="true">↓</span>
+            <button id="report-button" type="button" class="button subtle">
+              Nhật ký JSON</button
+            ><button id="pdf-button" type="button" class="button subtle">
+              PDF sau xử lý</button
+            ><button id="download-button" type="button" class="button primary">
+              Tải Word đã chuẩn hóa ↓
             </button>
           </div>
         </div>
         <p class="result-footnote">
-          DocLint kiểm tra cấu trúc dữ liệu, không dựng bản xem trước trang
-          Word. Hãy mở tệp kết quả để kiểm tra ngắt trang trước khi nộp hoặc in.
+          Hãy mở bản Word để kiểm tra lần cuối trước khi nộp/in. Kết quả được
+          tạo bằng bộ quy tắc; không viết lại văn bản và không gửi sang AI.
         </p>
       </section>
-
-      <section
-        id="how-it-works"
-        class="how-section"
-        aria-labelledby="how-title"
-      >
+      <section id="how-it-works" class="how-section">
         <div class="how-heading">
-          <span class="eyebrow">ĐƠN GIẢN TỪ ĐẦU ĐẾN CUỐI</span>
-          <h2 id="how-title">Ba bước, bớt một việc lo.</h2>
+          <span class="eyebrow">CÓ MỘT QUY TRÌNH, KHÔNG CHỈ MỘT NÚT SỬA</span>
+          <h2>Phân tích. Duyệt. Đối chiếu.</h2>
         </div>
         <ol class="how-grid">
           <li>
             <span>01 /</span>
-            <h3>Gửi bản thảo</h3>
+            <h3>Nhận diện có giải thích</h3>
             <p>
-              Chọn tài liệu Word và mẫu trình bày phù hợp với bài báo cáo của
-              bạn.
+              Dựa trên cấu trúc Word và dấu hiệu trình bày. Đề xuất khó được giữ
+              lại để bạn duyệt.
             </p>
           </li>
           <li>
             <span>02 /</span>
-            <h3>Để chi tiết vào nếp</h3>
+            <h3>Dàn trang theo vai trò</h3>
             <p>
-              Chuẩn hóa lề, phông và đoạn văn. Giữ nguyên ký tự, ảnh, công thức
-              và cấu trúc bảng.
+              Tiêu đề, đoạn, bảng và ảnh có cách xử lý riêng. Công thức và vùng
+              khóa được bảo vệ.
             </p>
           </li>
           <li>
             <span>03 /</span>
-            <h3>Xem lại & tải xuống</h3>
+            <h3>Nhìn thấy kết quả thật</h3>
             <p>
-              Biết những gì đã thay đổi, những gì cần xem lại. Tải về một bản
-              riêng để đối chiếu.
+              Bản dựng trước–sau, nhật ký và cảnh báo. Không dùng điểm 100% để
+              thay cho kiểm tra tài liệu.
             </p>
           </li>
         </ol>
       </section>
       <section id="privacy" class="privacy-section">
-        <span class="privacy-symbol" aria-hidden="true"
-          ><svg width="25" height="32" viewBox="0 0 25 32" fill="none">
-            <path
-              d="M4 2v17h16m-7-7 7 7-7 7"
-              stroke="currentColor"
-              stroke-width="1.5"
-            /></svg
-        ></span>
         <div>
-          <h2>Tài liệu của bạn, lời văn của bạn.</h2>
+          <h2>Tệp chỉ ở đây trong thời hạn phiên.</h2>
           <p>
-            Không gửi nội dung đến mô hình AI hay dịch vụ xử lý bên ngoài. Tệp
-            gốc chỉ được đọc để xử lý, không lưu vào kho phiên. Tệp kết quả và
-            báo cáo hết hạn sau 30 phút, được dọn tự động và có thể xóa ngay.
-            Các bản sao lưu hay bộ nhớ đệm của hạ tầng triển khai cần chính sách
-            riêng.
+            Bản gốc, bản dựng PDF, ảnh xem trước và kết quả được tạm lưu trên
+            máy chủ để xử lý, không gửi đến dịch vụ AI. Phiên hết hạn sau 30
+            phút từ lúc tiếp nhận tệp; bạn có thể hủy/xóa ngay. Máy chủ dừng thì
+            việc dọn vật lý tiếp tục khi chạy lại. Hạ tầng triển khai cần loại
+            dữ liệu phiên khỏi bản sao lưu.
           </p>
         </div>
       </section>
@@ -405,8 +565,8 @@
       <a class="brand footer-brand" href="/"
         >DocLint<span class="brand-dot">.</span></a
       >
-      <p>Định dạng chỉn chu. Nội dung nguyên bản.</p>
-      <span>Được xây dựng cho những bài báo cáo tốt hơn.</span>
+      <p>Giữ điều bạn viết. Chăm chút cách trình bày.</p>
+      <span>V1 · Báo cáo học thuật một cột</span>
     </footer>
   </body>
 </html>

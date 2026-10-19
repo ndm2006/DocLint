@@ -5,3 +5,5 @@ __pycache__/
 .pytest_cache/
 .coverage
 temp_storage/
+.ruff_cache/
+.doclint-output/

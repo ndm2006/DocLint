@@ -1,102 +1,189 @@
-# DocLint
+# DocLint V1
 
-Web chuẩn hóa trình bày DOCX bằng Python/FastAPI và OpenXML, có giao diện tiếng Việt. Luồng chính: **tải lên → chọn mẫu → chỉnh thuộc tính trình bày → đối chiếu toàn vẹn → xem báo cáo → tải bản riêng**.
+**Hoàn thiện báo cáo Word bằng bộ quy tắc, không dùng API AI trả phí.**
 
-Bản triển khai này theo định hướng báo cáo tuần 5: việc sửa bố cục không được làm thay đổi nội dung. Không cần API key, AI, cơ sở dữ liệu hoặc dịch vụ xử lý tài liệu bên ngoài.
+Tải DOCX → duyệt cây tiêu đề, vùng khóa và ý đồ căn bố cục → dàn trang theo vai trò → đối chiếu nội dung → xem từng trang trước/sau → tải Word, PDF và nhật ký. Phạm vi V1 là báo cáo học thuật một cột, không phải mọi kiểu tài liệu Word.
 
-## Chạy để phát triển
+## Bắt đầu trên Windows
 
-Yêu cầu Python 3.12 (đã kiểm thử), các phụ thuộc ghim phiên bản trong `DocLint/requirements.txt`. Tệp requirements gốc là UTF-16; pip đọc trực tiếp được, không cần chuyển mã.
+Bạn đã có Python thì giữ bản đang dùng. Cần Python 3.12–3.14 và **LibreOffice** để có đầy đủ bản dựng, mục lục và kiểm tra trang. LibreOffice miễn phí: [trang tải chính thức](https://www.libreoffice.org/download/download-libreoffice/).
 
-Từ thư mục gốc repository:
+1. Tải ZIP nhánh `codex/doclint-web`, giải nén vào một thư mục mới để giữ code cũ.
+2. Cài LibreOffice nếu máy chưa có. Không cần mua Microsoft Office để chạy máy chủ.
+3. Dừng Terminal DocLint cũ bằng `Ctrl+C` nếu đang dùng cổng 8000.
+4. Mở thư mục có README này, bấm đúp **`RUN_DOCLINT.cmd`**.
+5. Lần đầu script tạo môi trường riêng và cài thư viện; sau đó tự mở trình duyệt. Giữ cửa sổ chạy mở trong lúc sử dụng.
+
+Nếu chưa cài LibreOffice, web vẫn hoạt động và báo kết quả **chưa hoàn tất** cho những bước cần dựng PDF; không giả lập bản xem trước. Nếu cài Office ở vị trí riêng, đặt biến `DOCLINT_SOFFICE` là đường dẫn đầy đủ đến `soffice.exe` rồi chạy lại.
+
+Chạy thủ công trong PowerShell, tại thư mục có README:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r .\DocLint\requirements.txt
+.\.venv\Scripts\python.exe .\DocLint\launch.py
+```
+
+Mở trình duyệt trên chính máy chạy ứng dụng, nhập `http://127.0.0.1:8000`. Cổng khác có thể đặt qua `DOCLINT_PORT` khi dùng launcher. Launcher không dừng hay ghi đè một dịch vụ đang chạy trên cổng đó.
+
+## Cách thử để thấy khác biệt
+
+Trong giao diện có **Tải báo cáo mẫu có lỗi bố cục**. Đây là tài liệu tổng hợp, không chứa thông tin thật của người dùng. Có thể tạo lại bằng `python DocLint/examples/create_demo.py /đường/dẫn/mới.docx`.
+
+Sau khi tải lên:
+
+- Duyệt các đề mục được đề xuất; chọn Heading đúng cấp. Đề xuất chưa được duyệt giữ nguyên.
+- Chọn HUST hoặc báo cáo phổ thông. Mẫu HUST xuất phát từ cấu hình của dự án, chưa phải chứng nhận đúng mọi quy định trường/khoa.
+- Giữ bìa hoặc xác nhận điểm kết thúc bìa để áp mẫu học thuật/tối giản.
+- Chọn giữ ký tự căn bố cục, hoặc cho phép làm sạch. Có thể duyệt riêng khối căn giữa, thân bài hoặc chữ ký bên phải.
+- Xác nhận hàng đầu của bảng là tiêu đề nếu cần lặp khi sang trang.
+- Chọn tạo mục lục; nếu có mục lục cũ được nhận diện, phải chọn rõ thay thế. Chọn số trang nếu muốn chuẩn hóa.
+- Xem trước–sau, đọc cảnh báo, tải bản Word riêng và mở Word xem lần cuối.
+
+Mỗi lần đổi phương án đều xử lý từ **bản gốc**, tránh tích lũy những thay đổi không mong muốn.
+
+## Đã triển khai và phạm vi an toàn
+
+| Nhóm | Hành vi V1 |
+| --- | --- |
+| Phân tích | Mã khối, style kế thừa, vai trò, section, vùng bìa, mục lục, tham khảo/phụ lục; nhận định có giải thích |
+| Tiêu đề | Duyệt cấp 1–6, tạo style thật/outline, giữ tiêu đề với đoạn sau; không đổi tên hoặc đánh lại số |
+| Thân bài | Phông/cỡ theo vai trò, khoảng cách, giãn dòng, căn lề; giữ nhấn mạnh, chỉ số và phông ký hiệu |
+| Space/Tab | Chế độ giữ nguyên mặc định; làm sạch đầu đoạn có điều kiện hoặc theo lựa chọn cụ thể; không cắt ký tự giữa nội dung |
+| Enter | Chỉ thay chuỗi đoạn thật sự rỗng ngay trước chương đã duyệt; bảo vệ bookmark, ngắt section, đối tượng và đoạn bắt buộc |
+| Danh sách | Giữ số/ký hiệu đang có, chuẩn hóa hình thức; giữ style cung cấp numbering, chưa đổi danh sách gõ tay sang số tự động |
+| Bảng đơn giản | Độ rộng theo vùng in, phân bổ cột, đệm ô, kiểu chữ/viền, hàng tiêu đề có xác nhận; không đổi ô/số liệu |
+| Ảnh | Thu ảnh trong dòng theo cả chiều rộng/cao, giữ tỷ lệ hiển thị và dữ liệu ảnh; cảnh báo ảnh có thể bị kéo méo |
+| Chú thích | Liên kết đối tượng liền kề duy nhất hoặc được duyệt; giữ ảnh/chú thích cùng nhau bằng thuộc tính Word |
+| Bìa | Mẫu học thuật/tối giản, chỉ thông tin sẵn có; cần xác nhận vùng, không bịa tên/ngày/logo |
+| Mục lục | Trường TOC thật có cache số trang, thay mục lục cũ chỉ khi được duyệt; đối chiếu tối đa 3 bản dựng |
+| Số trang | Footer riêng, bảo toàn phần gốc; tùy chọn trang đầu ẩn, trang thứ hai bắt đầu số 1; section phức tạp được giữ |
+| Xem trước | PDF cục bộ, ảnh từng trang, điều hướng và đánh dấu các trang định vị được thay đổi/cảnh báo |
+| Toàn vẹn | Đối chiếu trước và sau đóng gói; vùng khóa kiểm tra chính xác; thành phần không sửa giữ byte-for-byte |
+| Vận hành | Hàng đợi giới hạn, timeout, hủy, TTL từ lúc tiếp nhận, khôi phục trạng thái sau gián đoạn |
+
+Các tình huống như bảng gộp ô/lồng, ảnh nổi, nhóm nhiều ảnh, content control, công thức, code, revision và bố cục ngang/nhiều cột được bảo vệ hoặc cảnh báo tùy phạm vi, không ép sửa.
+
+Đặc tả đối chiếu từng lỗi và tiêu chí: [docs/V1_SCOPE.md](docs/V1_SCOPE.md).
+
+## Quy tắc bảo toàn nội dung
+
+`v1/package.py` giữ một bản cấu trúc kỳ vọng độc lập với định dạng. Chỉ các thao tác nội dung có phạm vi cụ thể được đăng ký mới được phép: làm sạch đầu đoạn đã cho phép, bỏ đoạn thật sự rỗng đủ điều kiện, thay vùng mục lục đã duyệt và thêm cấu trúc sinh tự động. Thay câu chữ, số, công thức, đối tượng, liên kết hoặc dữ liệu bảng ngoài phạm vi đó sẽ làm đối chiếu thất bại và **không xuất kết quả**.
+
+Các style mới được tách khỏi style gốc, tránh ảnh hưởng vùng khóa. Vùng khóa còn được so sánh chính xác thuộc tính/cấu trúc; section dùng chung có thể được giữ lề/khổ giấy để bảo vệ vùng khóa. Tệp gốc luôn tồn tại riêng trong thời hạn phiên.
+
+Không coi việc bỏ mọi khoảng trắng rồi so sánh là kiểm chứng nội dung. Chế độ làm sạch giữ khoảng trắng giữa chữ và Tab giữa nội dung; mọi chỉnh sửa ký tự hợp lệ có nhật ký.
+
+## Bản dựng, phông chữ và trạng thái kết quả
+
+LibreOffice chỉ tạo PDF; DOCX do LibreOffice ghi lại không được dùng làm kết quả. PDFium đọc trang và tạo PNG. Dựng lại hữu hạn để khớp số trang mục lục; không lặp AI, không tự thu chữ để bớt trang.
+
+- `review`: đã phân tích, chờ duyệt hoặc cần thay đổi lựa chọn.
+- `ready`: các bước xử lý yêu cầu đã chạy và nội dung được đối chiếu; vẫn có thể có cảnh báo cần xem lại.
+- `partial`: nội dung đã đối chiếu nhưng bản dựng/mục lục/số trang chưa hoàn tất; tải Word được và cảnh báo rõ phần chưa kiểm tra.
+- `failed`: không hoàn tất phân tích; chưa có kết quả để tải.
+
+Máy chủ phải có phông phù hợp. Linux có thể dùng Liberation Serif thay Times New Roman hoặc Carlito thay Calibri; khi phát hiện thay phông, giao diện thông báo. LibreOffice và Word có thể ngắt dòng/trang khác nhau. Bản xem trước không phải cam kết giống Word từng điểm ảnh.
+
+Kiểm tra theo trang có phạm vi: trang ít chữ, tiêu đề gần cuối trang, chữ/ảnh ngoài khổ/vùng in định vị được. Liên kết trang thay đổi chỉ dựa trên khớp văn bản đủ rõ; không suy đoán mọi vị trí bảng/ảnh. 100% thuộc tính khớp mẫu không được dùng làm điểm đạt chuẩn toàn tài liệu.
+
+## Chạy trên Linux/cloud
+
+Từ thư mục gốc:
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r DocLint/requirements-dev.txt
+.venv/bin/python -m pip install -r DocLint/requirements-dev.txt
 cd DocLint
-python -m uvicorn api:app --host 0.0.0.0 --port 8000 --no-access-log
+PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m uvicorn api:app --host 0.0.0.0 --port 8000 --no-access-log
 ```
 
-Mở ứng dụng trên cổng 8000 qua công cụ chuyển tiếp cổng của môi trường chạy. Không có bước build frontend. Nếu chỉ chạy ứng dụng, có thể cài `requirements.txt` thay cho `requirements-dev.txt`.
+Cài LibreOffice và phông bằng trình quản lý gói của máy chạy. Môi trường cloud đã chuẩn bị dùng `/workspace/.venvs/doclint/bin/python` và `soffice` có sẵn. Mỗi tác vụ cloud đã cô lập; dùng checkout hiện có, không tạo worktree nếu không được yêu cầu.
 
-Trong môi trường cloud đã chuẩn bị, dùng `/workspace/.venvs/doclint/bin/python` thay cho `python`. Mỗi tác vụ cloud đã được cô lập; sử dụng checkout hiện có, không cần tạo Git worktree.
+## API V1
 
-## Quy tắc định dạng
-
-| Mẫu | Thân bài | Trang dọc |
+| Phương thức | Đường dẫn | Hành vi |
 | --- | --- | --- |
-| HUST | Times New Roman 13 pt, giãn dòng 1,5; cách trước/sau 6 pt | A4, trái 3 cm, các lề còn lại 2 cm |
-| Báo cáo gọn gàng | Calibri 12 pt, giãn dòng 1,2; sau đoạn 8 pt | A4, trái/phải 2,5 cm, trên/dưới 2 cm |
+| GET | `/api/v1/health` | Health cơ bản |
+| GET | `/api/v1/capabilities` | Phiên bản, bộ dựng, giới hạn, không dùng AI |
+| GET | `/api/v1/profiles` | Mẫu và thông số |
+| POST | `/api/v1/jobs` | Multipart `file`; HTTP 202, trả URL theo dõi |
+| GET | `/api/v1/jobs/{id}` | Trạng thái, phân tích, lựa chọn và báo cáo riêng của phiên |
+| POST | `/api/v1/jobs/{id}/format` | JSON lựa chọn; HTTP 202; luôn bắt đầu từ bản gốc |
+| GET | `/api/v1/jobs/{id}/download` | Word sau kiểm chứng |
+| GET | `/api/v1/jobs/{id}/report` | JSON nhật ký và kết quả kiểm tra |
+| GET | `/api/v1/jobs/{id}/preview/{original\|result}.pdf` | PDF tương ứng |
+| GET | `/api/v1/jobs/{id}/pages/{original\|result}/{n}.png` | Ảnh trang theo nhu cầu |
+| DELETE | `/api/v1/jobs/{id}` | Hủy và xóa; 204 khi xong, 202 nếu đang dừng |
 
-Mẫu HUST lấy từ cấu hình sẵn có của dự án, không phải chứng nhận đúng mọi quy định của trường/khoa. NĐ30 và IEEE chưa được triển khai; đặc biệt không tự chuyển báo cáo sang hai cột.
+Các trường chọn định dạng được kiểm tra bởi `v1/options.py`: `profile`, `mode`, `heading_levels`, `locked_blocks`, `preserve_cover`, `preserve_references`, `preserve_appendices`, `cover`, `cover_end`, `table_headers`, `caption_links`, `layout_decisions`, `toc`, `page_numbers`, `hide_first_page_number`, `normalize_tables`, `normalize_images`. Trường không biết bị từ chối. UUID trong URL là quyền truy cập phiên; không chia sẻ URL tài liệu riêng tư.
 
-Tự sửa phông/cỡ chữ thân bài, căn đều và khoảng cách đoạn cho các đoạn thường đủ điều kiện; đặt phông mặc định và lề/khổ giấy cho section dọc một cột; căn giữa đoạn chỉ chứa ảnh trong dòng. Giữ nguyên căn giữa/phải có sẵn, tiêu đề, mục lục, danh sách, trang ngang, section nhiều cột, bảng, trường tự động, công thức và đối tượng. Phông ký hiệu và cỡ chữ trên/dưới được bảo vệ.
+Endpoint `/api/v1/lint` và `/api/v1/sessions/...` cũ được giữ để tương thích luồng định dạng cơ bản trước V1. Giao diện V1 dùng Jobs API để phân tích/duyệt/xem trước, không dùng endpoint cũ.
 
-Không xóa đoạn trống, không cắt khoảng trắng, không xóa hoặc thêm Tab, không tự đổi tiêu đề giả thành Heading 1. Các đoạn dùng khoảng trắng/Tab để căn lề và tiêu đề cần suy đoán được cảnh báo. Những đoạn này có thể chưa được chuẩn hóa tự động. Không tự co bảng, đổi kích thước ảnh, tạo mục lục hay viết lại nội dung.
+## Giới hạn và dữ liệu tạm
 
-## Bảo toàn dữ liệu
+- 15 MiB tải lên; 80 MiB giải nén; 8 MiB/mục XML; 2.000 mục ZIP; 5.000 khối trực tiếp.
+- Xem trước tối đa 120 trang; tối đa 60 giây cho mỗi lần gọi Office, tối đa 3 lượt dựng để đối chiếu mục lục.
+- Dựng ảnh tối đa 40 triệu điểm ảnh/mỗi ảnh, 80 triệu điểm ảnh/tệp để giới hạn bộ nhớ.
+- Một worker cho luồng Jobs, tối đa 4 việc chờ; 10 lượt tải lên/phút theo IP trực tiếp và tối đa 10 lần dàn trang/phiên.
+- Bản gốc, phân tích, PDF, PNG và kết quả nằm trong thư mục UUID mode 0700, hết hạn sau 30 phút từ lúc tiếp nhận; đọc/tải/xử lý lại không gia hạn.
+- Hủy khi đang chạy phải dừng tiến trình trước khi xác nhận đã xóa. Có deadline, quét bổ sung mỗi 10 giây và dọn/khôi phục khi khởi động.
+- Khi máy dừng, việc xóa vật lý chỉ tiếp tục khi dịch vụ chạy lại. Không đưa kho phiên vào snapshot/backup; không cam kết xóa pháp chứng trên đĩa/hạ tầng ngoài ứng dụng.
 
-Chỉ sửa hai thành phần `word/document.xml` và `word/styles.xml`. Kiểm tra cấu trúc XML trước/sau, bỏ qua đúng các thuộc tính trình bày cho phép sửa (`jc`, `spacing`, `ind`, `widowControl`, `rFonts`, `sz`, `szCs`, `pgMar`, `pgSz`) tại đúng các thẻ thuộc tính của chúng. Mọi ký tự trong nút văn bản, kể cả khoảng trắng, Tab, trường, liên kết, revision, công thức, hình và cấu trúc bảng phải giữ nguyên. Các thành phần còn lại của ZIP được đối chiếu byte-for-byte. Nếu đối chiếu thất bại thì không xuất tệp. Chạy thử định dạng lần hai để xác nhận kết quả ổn định.
+`DOCLINT_STORAGE` chọn kho tạm; Jobs nằm ở thư mục con `v1-jobs`. Không ghi nội dung tài liệu hoặc raw log Office ra log máy chủ. Phản hồi riêng tư có `Cache-Control: no-store`; giao diện chỉ giữ UUID trong sessionStorage để nối lại sau khi tải lại trang.
 
-Đây là kiểm tra dữ liệu và thuộc tính trình bày. Ứng dụng không có bộ dàn trang Word, không xem trước DOCX theo trang và không đánh giá chất lượng văn bản. Điểm hiển thị là tỷ lệ các thuộc tính được kiểm tra khớp mẫu; 100% không có nghĩa toàn bộ tài liệu đã đạt chuẩn. Mở bản tải về bằng Word để xem lại ngắt trang, ảnh và bảng trước khi nộp/in. Máy mở tệp cần có phông tương ứng để hiển thị chính xác.
+## Đóng gói container
 
-## API
+```bash
+docker compose up --build
+```
 
-| Phương thức | Đường dẫn | Kết quả |
-| --- | --- | --- |
-| GET | `/` | Giao diện web |
-| GET | `/api/v1/health` | Trạng thái tiến trình |
-| GET | `/api/v1/profiles` | Mẫu và thông số trình bày |
-| POST | `/api/v1/lint` | Multipart `file`, `profile=hust\|report`; trả JSON HTTP 201 |
-| GET | `/api/v1/sessions/{uuid}/download` | Tệp DOCX với tên `_doclint.docx` |
-| DELETE | `/api/v1/sessions/{uuid}` | Xóa tệp kết quả và báo cáo; HTTP 204 |
+Compose chạy user không phải root, filesystem chỉ đọc, dữ liệu tạm trên tmpfs, bỏ capabilities, giới hạn RAM/CPU/PID và mạng runtime `internal`. Cổng chỉ gắn vào loopback máy chủ. Không mount thư mục chứa bí mật hoặc bật Internet cho bộ dựng. Tệp nhúng/ActiveX, trường nạp tài nguyên ngoài và SVG chủ động không được chuyển cho Office; liên kết ngoài bị vô hiệu hóa trong bản dựng tạm, không sửa liên kết gốc trong DOCX.
 
-JSON trả về có `session_id`, `expires_at`, `filename`, `download_url`, `score`, `changes`, `warnings`, `summary`, `integrity`. Không trả nội dung tài liệu trong báo cáo. Đường dẫn tải xuống chứa UUID đóng vai trò quyền truy cập; không chia sẻ nó nếu tài liệu riêng tư.
+Public deployment vẫn cần HTTPS, giới hạn lưu lượng tại reverse proxy và đánh giá bảo mật/hạ tầng. Tự chạy Python trực tiếp không cung cấp cùng mức cô lập hệ điều hành như container.
 
-Giới hạn: 15 MiB/tệp, 80 MiB tổng giải nén, 8 MiB/mục XML, 2.000 mục ZIP. Cả upload có Content-Length và luồng chunked đều được chặn kích thước trước khi phân tích multipart. Từ chối gói trùng tên mục, đường dẫn bất thường, CRC hỏng, DTD/entity, macro, chữ ký số, tệp có mật khẩu và WordprocessingML Strict chưa hỗ trợ. Không giải nén đường dẫn ra đĩa hay tải tài nguyên từ tài liệu.
+Nếu mạng build có TLS proxy doanh nghiệp, Dockerfile hỗ trợ BuildKit secret `build_ca` là **bundle CA công khai được tổ chức tin cậy**. Chỉ truyền CA hợp lệ khi cần; không truyền khóa riêng, không tắt TLS và không bỏ kiểm tra chữ ký gói. Bundle chỉ mount lúc build, không giữ trong image. Cấu hình proxy/DNS thuộc máy build; không hardcode vào repository.
 
-Kết quả và báo cáo được lưu tại thư mục riêng của UUID dưới `${DOCLINT_STORAGE}` (mặc định thư mục tạm hệ thống `doclint-sessions`). Tệp gốc không lưu trong kho phiên; multipart có thể dùng tệp tạm hệ thống và được đóng sau xử lý. Phiên hết hạn sau 30 phút kể từ lúc tạo kết quả; chặn tải ngay khi hết hạn, lên lịch xóa từng phiên và quét bổ sung mỗi 10 giây/khi khởi động. Có thể xóa ngay trên giao diện. Nếu máy chủ bị dừng, việc xóa vật lý chỉ tiếp tục khi ứng dụng chạy lại; bản sao lưu/snapshot cần chính sách lưu giữ riêng của hạ tầng. Tệp được ghi vào thư mục phiên mode 0700, phản hồi có `Cache-Control: no-store`.
-
-Triển khai công khai cần HTTPS, giới hạn request/concurrency tại reverse proxy và chính sách dọn dữ liệu ở hạ tầng. Ứng dụng hiện giới hạn 2 luồng xử lý tài liệu trên mỗi tiến trình; không cung cấp đăng nhập, quota hay mô hình multi-tenant. Không bật access log ở ví dụ khởi động để tránh ghi UUID tải xuống.
+Không có phí API AI; máy chủ, CPU dựng PDF và băng thông vẫn có chi phí.
 
 ## Kiểm thử
 
-Từ `DocLint/`, sau khi cài phụ thuộc phát triển:
+Từ thư mục `DocLint/`, sau khi cài `requirements-dev.txt`:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -v
+python -m ruff check v1 api.py main.py launch.py tests/test_v1_engine.py tests/test_v1_jobs.py tests/v1_fixtures.py examples --select F,E9
 ```
 
-Bao gồm sửa định dạng thực, lặp lại không đổi thêm, ký tự/whitespace/Tab, đoạn rỗng chứa bookmark, bảng lồng và ô gộp, OMML, ảnh, section nhiều cột/ngang, ký hiệu, heading, tệp hỏng, hạn mức, API upload/download/delete, phiên độc lập và TTL thật.
+Có kiểm thử nội dung/whitespace, Heading và style kế thừa, list numbering, khóa vùng, bảng gộp/lồng, OMML, ảnh, revision, cache mục lục, footer, timeout, hàng đợi, request đồng thời, giới hạn và TTL. Nhóm corpus tạo 30 tài liệu tổng hợp khác nhau trong bộ nhớ; không đưa báo cáo riêng của người dùng vào Git. Bài tích hợp Office được đánh dấu bỏ qua khi không có LibreOffice, không được tính là đã xác minh bản dựng.
 
-Kiểm thử trình duyệt khi server đang chạy (Chromium sẵn có):
+Smoke test trình duyệt khi server đang chạy:
 
 ```bash
 DOCLINT_BROWSER_PATH=/usr/bin/chromium python tests/browser_smoke.py
 ```
 
-Nếu chưa có Chromium, cài bằng `python -m playwright install chromium` rồi bỏ biến `DOCLINT_BROWSER_PATH`. Có thể truyền `DOCLINT_TEST_DOCX=/đường/dẫn/tệp.docx` để thử tài liệu riêng; tệp đó không được đưa vào repository. Dùng `DOCLINT_SCREENSHOT_DIR` để lưu ảnh kiểm tra ngoài repository.
+Có thể đặt `DOCLINT_TEST_URL`, `DOCLINT_TEST_DOCX`, `DOCLINT_SCREENSHOT_DIR`. Nếu dùng Chromium của Playwright, cài `python -m playwright install chromium` và bỏ biến đường dẫn browser. Người dùng thông thường không cần Node.js hay Playwright để chạy web.
 
 ## CLI
 
-Dùng cùng lõi xử lý như web, phải chỉ định đầu ra khác tệp gốc:
-
 ```bash
-python main.py input.docx output.docx --profile hust
+python main.py input.docx --analyze > analysis.json
+python main.py input.docx output.docx --profile hust --preview-dir /thư/mục/riêng
+python main.py input.docx output.docx --options doclint-report.json
 ```
 
-`run_system_test(input_path, profile_path, output_path)` được giữ cho lời gọi cũ với mẫu HUST. Lỗi được báo ra ngoài thay vì in thông báo rồi trả thành công.
+Có thể dùng lại `options` từ nhật ký của chính tệp gốc; SHA-256 được kiểm tra khi đọc nhật ký để tránh áp lựa chọn vào nhầm tài liệu. Không tự duyệt đề mục còn phân vân khi chạy CLI. Đầu ra phải khác tệp gốc. `run_system_test(input, profile_path, output)` còn được giữ cho mẫu HUST, dùng pipeline V1 và báo lỗi ra ngoài.
 
-## Cấu trúc
+## Mã nguồn chính
 
-- `api.py`: web/API, giới hạn tải lên, deadline và vòng đời phiên.
-- `core/processor.py`: kiểm tra gói DOCX, xử lý, đối chiếu, báo cáo.
-- `core/autofix.py`: chỉ chỉnh thuộc tính định dạng; không sửa nút nội dung.
-- `core/xmlutils.py`: thứ tự phần tử OpenXML và chữ ký toàn vẹn.
-- `core/profiles.py`: mẫu HUST và mẫu báo cáo phổ thông.
-- `core/sessions.py`: kết quả tạm, thời hạn, xóa phiên.
-- `static/`: HTML/CSS/JS, không phụ thuộc CDN.
-- `tests/`: kiểm thử lõi/API và smoke test trình duyệt.
+- `v1/analysis.py`: bản đồ khối, style kế thừa, phân loại và đề xuất.
+- `v1/editor.py`, `design.py`: các quy tắc và mẫu theo vai trò.
+- `v1/package.py`: gói OPC, phép sửa được phép, kiểm chứng và vùng khóa.
+- `v1/fields.py`: TOC và footer/số trang được chấp thuận.
+- `v1/renderer.py`, `pipeline.py`: PDF/PNG, kiểm tra trang và đối chiếu cuối.
+- `v1/jobs.py`, `routes.py`: hàng đợi, quyền truy cập phiên và vòng đời.
+- `static/`: giao diện không phụ thuộc CDN.
+- `core/`: tiện ích OpenXML và engine/endpoint tương thích cũ.
 
-Các rule phân tích cũ trong `core/*_rule.py` còn được giữ để tương thích; báo cáo của web được tạo bởi `processor.py`, nơi phân biệt sửa tự động và cảnh báo.
+Giấy phép phụ thuộc: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Không mặc định coi “miễn phí tải thư viện” là được bỏ nghĩa vụ giấy phép khi phân phối.

@@ -1,0 +1,19 @@
+services:
+  doclint:
+    image: doclint:v1
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=768m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 128
+    networks: [private_runtime]
+    restart: unless-stopped
+networks:
+  private_runtime:
+    internal: true

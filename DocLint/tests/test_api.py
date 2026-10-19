@@ -44,7 +44,7 @@ class APITests(unittest.TestCase):
             self.assertIsInstance(response.json()['detail'], str)
         response = self.client.post('/api/v1/lint', content=b'x', headers={'content-length': str(MAX_UPLOAD + 2 * 1024 * 1024)})
         self.assertEqual(response.status_code, 413, response.text)
-        self.assertFalse(list(Path(self.tmp.name).iterdir()))
+        self.assertFalse([p for p in Path(self.tmp.name).rglob('*') if p.is_file()])
 
     def test_chunked_body_without_content_length_is_bounded(self):
         def chunks():
@@ -52,7 +52,7 @@ class APITests(unittest.TestCase):
                 yield b'x' * 1024 * 1024
         response = self.client.post('/api/v1/lint', content=chunks(), headers={'content-type': 'application/octet-stream'})
         self.assertEqual(response.status_code, 413, response.text)
-        self.assertFalse(list(Path(self.tmp.name).iterdir()))
+        self.assertFalse([p for p in Path(self.tmp.name).rglob('*') if p.is_file()])
 
     def test_profiles_static_security_and_path_rejection(self):
         self.assertEqual({p['id'] for p in self.client.get('/api/v1/profiles').json()}, {'hust','report'})
@@ -76,4 +76,4 @@ class APITests(unittest.TestCase):
         self.client.delete('/api/v1/sessions/' + first['session_id'])
         self.assertEqual(self.client.get(second['download_url']).status_code, 200)
         with patch('core.sessions.time.time', return_value=time.time()+1900): SessionStore(self.tmp.name).cleanup()
-        self.assertFalse(list(Path(self.tmp.name).iterdir()))
+        self.assertFalse([p for p in Path(self.tmp.name).rglob('*') if p.is_file()])
