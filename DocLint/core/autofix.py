@@ -1,213 +1,142 @@
-from lxml import etree
+"""Formatting-only fixes: never remove a paragraph, a character, or a tab."""
+from collections import Counter
 import re
+from lxml import etree
+from core.xmlutils import NS, q, child
+
+HEADING = re.compile(r'^(?:(?:Chương|Chapter|Phần|Part|Bài|Section)\s*(?:\d+|[IVXLCDM]+)\b|[IVXLCDM]+\.|\d+(?:\.\d+)*[.\s])', re.I)
+SPECIAL_STYLE = re.compile(r'heading|title|subtitle|toc|caption|tiêu đề|mục lục|chú thích', re.I)
+SYMBOL_FONTS = {'symbol', 'wingdings', 'wingdings 2', 'wingdings 3', 'webdings', 'mt extra', 'cambria math'}
 
 class DocFixer:
-    def __init__(self, profile):
+    def __init__(self, profile, styles_tree=None):
         self.profile = profile
-        self.namespaces = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+        self.namespaces = NS
+        self.styles = {}
+        if styles_tree is not None:
+            self.styles = {s.get(q('styleId')): s for s in styles_tree.findall(q('style'))}
+        self.changes = Counter()
+        self.checks = Counter()
+        self.warnings = Counter()
+
+    def _property(self, parent, name, attrs, category, remove=()):
+        node = parent.find(q(name))
+        before = etree.tostring(node) if node is not None else None
+        node = child(parent, name)
+        for attr in remove:
+            node.attrib.pop(q(attr), None)
+        for attr, value in attrs.items():
+            node.set(q(attr), str(value))
+        self.checks[category] += 1
+        if before != etree.tostring(node):
+            self.changes[category] += 1
+        return node
+
+    def _style_chain(self, paragraph):
+        style_id = paragraph.find('w:pPr/w:pStyle', NS)
+        style_id = style_id.get(q('val')) if style_id is not None else 'Normal'
+        seen = set()
+        while style_id and style_id not in seen:
+            seen.add(style_id)
+            style = self.styles.get(style_id)
+            yield style_id, style
+            based = style.find(q('basedOn')) if style is not None else None
+            style_id = based.get(q('val')) if based is not None else None
+
+    def body_paragraphs(self, tree):
+        for p in tree.findall('w:body/w:p', NS):
+            text = ''.join(p.xpath('.//w:t/text()', namespaces=NS))
+            if not text.strip():
+                continue
+            # Keep lists, fields, formulas, tracked revisions and drawing layouts.
+            if p.xpath('.//w:drawing | .//w:pict | .//w:object | .//m:oMath | .//m:oMathPara | .//w:fldChar | .//w:instrText | .//w:fldSimple | .//w:ins | .//w:del | .//w:moveFrom | .//w:moveTo | ./w:pPr/w:numPr | ./w:pPr/w:sectPr', namespaces=NS):
+                continue
+            chain = list(self._style_chain(p))
+            if any(SPECIAL_STYLE.search(sid or '') or (s is not None and (
+                SPECIAL_STYLE.search(' '.join(s.xpath('./w:name/@w:val', namespaces=NS))) or
+                s.find('w:pPr/w:outlineLvl', NS) is not None or s.find('w:pPr/w:numPr', NS) is not None)) for sid, s in chain):
+                continue
+            if p.find('w:pPr/w:outlineLvl', NS) is not None:
+                continue
+            props = [p.find(q('pPr'))] + [s.find(q('pPr')) for _, s in chain if s is not None]
+            alignment = next((n.find(q('jc')).get(q('val')) for n in props if n is not None and n.find(q('jc')) is not None), None)
+            if alignment in {'center', 'right', 'end'}:
+                continue
+            if HEADING.match(text.strip()):
+                self.warnings['headings'] += 1
+                continue
+            if p.xpath('.//w:tab', namespaces=NS) or text != text.lstrip():
+                self.warnings['manual_spacing'] += 1
+                continue
+            runs = p.xpath('./w:r[w:t]', namespaces=NS)
+            # Short bold blocks are often covers, captions or signatures.
+            if len(text.strip()) < 100 and runs and all(r.find('w:rPr/w:b', NS) is not None for r in runs):
+                continue
+            yield p
 
     def fix_margins(self, tree):
-        expected_left = self.profile["margin_rules"]["left"]
-        expected_right = self.profile["margin_rules"]["right"]
-        pg_mar_tags = tree.xpath('.//w:sectPr/w:pgMar', namespaces=self.namespaces)
-        for pg_mar in pg_mar_tags:
-            pg_mar.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}left', expected_left)
-            pg_mar.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}right', expected_right)
+        for section in tree.xpath('.//w:sectPr', namespaces=NS):
+            size = section.find(q('pgSz'))
+            columns = section.find(q('cols'))
+            landscape = size is not None and (size.get(q('orient')) == 'landscape' or int(size.get(q('w'), '0')) > int(size.get(q('h'), '99999')))
+            if landscape or (columns is not None and (int(columns.get(q('num'), '1')) > 1 or len(columns))):
+                self.warnings['complex_sections'] += 1
+                continue
+            self._property(section, 'pgMar', self.profile['margin_rules'], 'margins')
+            self._property(section, 'pgSz', self.profile['page_rules'], 'page_size')
         return tree
 
     def fix_fonts(self, tree):
-        # 1. Cắt bỏ hoàn toàn nhiễu cục bộ (Các thẻ rFonts rác nằm rải rác)
-        font_tags = tree.xpath('.//w:rPr/w:rFonts', namespaces=self.namespaces)
-        for tag in font_tags:
-            parent = tag.getparent()
-            if parent is not None:
-                parent.remove(tag)
+        font = self.profile['typography']['default_font']
+        size = self.profile['typography']['default_size']
+        for p in self.body_paragraphs(tree):
+            for run in p.xpath('.//w:r[w:t]', namespaces=NS):
+                existing = run.find('w:rPr/w:rFonts', NS)
+                if existing is not None and any(v.lower() in SYMBOL_FONTS for v in existing.attrib.values()):
+                    self.warnings['symbol_fonts'] += 1
+                    continue
+                # A character style may encode symbols or special typography.
+                if run.find('w:rPr/w:rStyle', NS) is not None:
+                    continue
+                props = run.find(q('rPr'))
+                if props is None:
+                    props = etree.Element(q('rPr'))
+                    run.insert(0, props)
+                self._property(props, 'rFonts', {'ascii': font, 'hAnsi': font, 'cs': font}, 'fonts', ('asciiTheme', 'hAnsiTheme', 'cstheme'))
+                if props.find(q('vertAlign')) is None:
+                    self._property(props, 'sz', {'val': size}, 'font_size')
+                    self._property(props, 'szCs', {'val': size}, 'font_size')
         return tree
 
     def fix_global_styles(self, styles_tree):
-        # 2. TẤN CÔNG TRỤ SỞ CHÍNH: Can thiệp vào file styles.xml
-        expected_font = self.profile["typography"]["default_font"]
-        
-        # Tìm mọi cấu hình font gốc trong file styles.xml
-        all_rFonts = styles_tree.xpath('.//w:rFonts', namespaces=self.namespaces)
-        
-        for rFonts in all_rFonts:
-            # Bẻ gãy liên kết với Theme Calibri của Microsoft
-            for attr in list(rFonts.keys()):
-                if 'Theme' in attr:
-                    del rFonts.attrib[attr]
-            
-            # Ép cứng font chuẩn vào lõi hệ thống
-            rFonts.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}ascii', expected_font)
-            rFonts.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}hAnsi', expected_font)
-            rFonts.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}cs', expected_font)
-            
+        defaults = child(child(child(styles_tree, 'docDefaults'), 'rPrDefault'), 'rPr')
+        font = self.profile['typography']['default_font']
+        self._property(defaults, 'rFonts', {'ascii': font, 'hAnsi': font, 'cs': font}, 'default_font', ('asciiTheme', 'hAnsiTheme', 'cstheme'))
+        # Do not flatten heading sizes, symbol styles, footnotes, or equations.
         return styles_tree
+
     def fix_fake_headings(self, tree):
-        heading_pattern = re.compile(
-            r'^((Chương|Chapter|Phần|Part|Bài|Section)\s*(?:\d+|[IVX]+)|[IVX]+\.|[0-9]+(\.[0-9]+)*\.*)', 
-            re.IGNORECASE
-        )
-        paragraphs = tree.xpath('.//w:p', namespaces=self.namespaces)
-        
-        for p in paragraphs:
-            bolds = p.xpath('.//w:rPr/w:b', namespaces=self.namespaces)
-            if bolds:
-                texts = p.xpath('.//w:t/text()', namespaces=self.namespaces)
-                full_text = "".join(texts).strip()
-                
-                # Suy đoán 1: Cấu trúc giống tiêu đề và ngắn (< 100 ký tự)
-                if full_text and len(full_text) < 100 and heading_pattern.match(full_text):
-                    
-                    # Suy đoán 2: Không phải là một câu văn kể lể kết thúc bằng dấu câu
-                    if not full_text.endswith(('.', '?', '!')):
-                        
-                        # CHÚ Ý: Toàn bộ khối này đã được thụt lề vào trong
-                        pStyle_val = p.xpath('.//w:pPr/w:pStyle/@w:val', namespaces=self.namespaces)
-                        if not pStyle_val or 'Heading' not in pStyle_val[0]:
-                            
-                            # 1. Tìm hoặc tạo thẻ thuộc tính đoạn văn <w:pPr>
-                            pPr = p.find('w:pPr', namespaces=self.namespaces)
-                            if pPr is None:
-                                pPr = etree.Element('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr')
-                                p.insert(0, pPr)
-                            
-                            # 2. Xóa Style cũ (nếu có)
-                            old_style = pPr.find('w:pStyle', namespaces=self.namespaces)
-                            if old_style is not None:
-                                pPr.remove(old_style)
-                                
-                            # 3. ÉP KHUÔN HEADING 1
-                            new_style = etree.SubElement(pPr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pStyle')
-                            new_style.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', 'Heading1')
+        """Compatibility entry point: ambiguous headings are now warnings only."""
         return tree
+
     def fix_paragraphs(self, tree):
-        p_rules = self.profile.get("paragraph_rules", {})
-        default_align = p_rules.get("alignment", "both")
-        default_indent = p_rules.get("first_line_indent", "720")
-        line_val = p_rules.get("line_spacing", "360")
-        space_val = p_rules.get("space_before", "120")
-        
-        paragraphs = tree.xpath('.//w:p', namespaces=self.namespaces)
-        
-        for p in paragraphs:
-            # 1. Bỏ qua Heading
-            pStyle = p.xpath('.//w:pPr/w:pStyle/@w:val', namespaces=self.namespaces)
-            if pStyle and 'Heading' in pStyle[0]:
-                continue
-                
-            # 2. ANTI-SPAM: Xóa các đoạn rỗng (Enter thừa)
-            texts = p.xpath('.//w:t/text()', namespaces=self.namespaces)
-            full_text_clean = "".join(texts).strip()
-            drawings = p.xpath('.//w:drawing', namespaces=self.namespaces)
-            br = p.xpath('.//w:br', namespaces=self.namespaces)
-            
-            if not full_text_clean and not drawings and not br:
-                parent = p.getparent()
-                if parent is not None:
-                    parent.remove(p)
-                continue
-
-            # 3. QUÉT RÁC & ĐẾM SỐ LƯỢNG (Sweeper & Counter)
-            leading_spaces_count = 0
-            text_started = False
-            
-            runs = p.xpath('.//w:r', namespaces=self.namespaces)
-            for r in runs:
-                if text_started:
-                    break
-                    
-                # Xóa và đếm thẻ Tab
-                tabs = r.xpath('.//w:tab', namespaces=self.namespaces)
-                if tabs:
-                    leading_spaces_count += len(tabs) * 5  # Quy đổi 1 tab tương đương 5 dấu cách
-                    for tab in tabs:
-                        tab.getparent().remove(tab)
-                        
-                # Xóa và đếm khoảng trắng ở đầu thẻ Text
-                t_nodes = r.xpath('.//w:t', namespaces=self.namespaces)
-                for t in t_nodes:
-                    if t.text:
-                        original_len = len(t.text)
-                        stripped_text = t.text.lstrip()
-                        removed_spaces = original_len - len(stripped_text)
-                        
-                        leading_spaces_count += removed_spaces
-                        t.text = stripped_text
-                        
-                        if len(stripped_text) > 0:
-                            text_started = True
-                            break
-
-           # 4. SUY ĐOÁN Ý ĐỒ CĂN LỀ & DÙNG TAB STOP CHUYÊN NGHIỆP
-            text_length = len(full_text_clean)
-            target_align = default_align
-            target_indent = default_indent
-            is_signature_block = False
-            
-            if text_length > 0 and text_length < 60:
-                if leading_spaces_count >= 15:
-                    is_signature_block = True
-                    target_align = "left"    # Đặt lề trái, đẩy chữ bằng Tab Stop
-                    target_indent = "0"
-                elif 6 <= leading_spaces_count < 15:
-                    target_align = "center"  # Tiêu đề phụ căn giữa
-                    target_indent = "0"
-
-            if drawings:
-                target_indent = "0"
-                target_align = "center"
-
-            # 5. ĐỔ KHUÔN ĐỊNH DẠNG VÀO XML
-            pPr = p.find('w:pPr', namespaces=self.namespaces)
-            if pPr is None:
-                pPr = etree.Element('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr')
-                p.insert(0, pPr)
-
-            jc = pPr.find('w:jc', namespaces=self.namespaces)
-            if jc is None:
-                jc = etree.SubElement(pPr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}jc')
-            jc.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', target_align)
-
-            # Xử lý Lùi đầu dòng
-            ind = pPr.find('w:ind', namespaces=self.namespaces)
-            if ind is None:
-                ind = etree.SubElement(pPr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}ind')
-            for attr in ['left', 'right', 'hanging', 'firstLine']:
-                full_attr = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}' + attr
-                if full_attr in ind.attrib:
-                    del ind.attrib[full_attr]
-            if target_indent != "0":
-                ind.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}firstLine', target_indent)
-
-            # === CƠ CHẾ TAB STOP CHUYÊN NGHIỆP ===
-            if is_signature_block:
-                # Thiết lập mốc Tab ở vị trí 13.5cm (khoảng 7650 twips) - Căn giữa mốc đó
-                tabs = pPr.find('w:tabs', namespaces=self.namespaces)
-                if tabs is not None:
-                    pPr.remove(tabs)
-                tabs = etree.SubElement(pPr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tabs')
-                tab_stop = etree.SubElement(tabs, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tab')
-                tab_stop.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', 'center')
-                tab_stop.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pos', '7650')
-
-                # Tự động chèn 1 phím Tab vào thẻ <w:r> đầu tiên có chứa chữ
-                runs = p.xpath('.//w:r', namespaces=self.namespaces)
-                for r in runs:
-                    t_nodes = r.xpath('.//w:t', namespaces=self.namespaces)
-                    if t_nodes and t_nodes[0].text and t_nodes[0].text.strip():
-                        # Chèn thẻ <w:tab/> vào trước thẻ <w:t>
-                        tab_elem = etree.Element('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tab')
-                        t_nodes[0].addprevious(tab_elem)
-                        break
-
-            # Ép Giãn dòng & Cách đoạn chuẩn HUST
-            spacing = pPr.find('w:spacing', namespaces=self.namespaces)
-            if spacing is None:
-                spacing = etree.SubElement(pPr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}spacing')
-            spacing.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}line', line_val)
-            spacing.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}lineRule', 'auto')
-            spacing.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}before', space_val) 
-            spacing.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}after', space_val)  
-
+        rules = self.profile['paragraph_rules']
+        for p in self.body_paragraphs(tree):
+            props = p.find(q('pPr'))
+            if props is None:
+                props = etree.Element(q('pPr'))
+                p.insert(0, props)
+            self._property(props, 'jc', {'val': rules['alignment']}, 'paragraphs')
+            self._property(props, 'spacing', {'line': rules['line_spacing'], 'lineRule': 'auto', 'before': rules['space_before'], 'after': rules['space_after']}, 'paragraphs', ('beforeAutospacing', 'afterAutospacing', 'beforeLines', 'afterLines'))
+            # Existing horizontal indents may encode a quotation or signature.
+            if props.find(q('ind')) is None:
+                self._property(props, 'ind', {'firstLine': rules['first_line_indent']}, 'paragraphs')
+            self._property(props, 'widowControl', {'val': '1'}, 'paragraphs')
+        for p in tree.findall('w:body/w:p', NS):
+            if p.xpath('.//w:drawing/wp:inline', namespaces={**NS, 'wp': 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'}) and not p.xpath('.//w:t | .//w:pict | .//m:oMath | .//w:fldChar | .//w:instrText | .//w:ins | .//w:del', namespaces=NS) and not p.xpath('.//wp:anchor', namespaces={'wp': 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'}):
+                props = p.find(q('pPr'))
+                if props is None:
+                    props = etree.Element(q('pPr'))
+                    p.insert(0, props)
+                self._property(props, 'jc', {'val': 'center'}, 'images')
         return tree
