@@ -1,0 +1,22 @@
+{
+  "profile_name": "HUST Standard",
+  "margin_rules": {
+    "left": "1701",   
+    "right": "1134",  
+    "top": "1134",    
+    "bottom": "1134"  
+  },
+  "typography": {
+    "default_font": "Times New Roman",
+    "default_size": "26", 
+    "heading1_size": "32", 
+    "line_spacing": "360"  
+  },
+  "paragraph_rules": {
+    "alignment": "both",
+    "first_line_indent": "720", 
+    "line_spacing": "360",
+    "space_before": "120",
+    "space_after": "120"
+  }
+}
