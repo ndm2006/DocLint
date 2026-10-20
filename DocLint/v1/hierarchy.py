@@ -82,6 +82,7 @@ def refine_hierarchy(analysis):
         if b["position"] > cover
         and analysis.elements[b["id"]] not in toc
         and not b.get("protected")
+        and not b.get("layout_locked")
         and not b.get("region")
     ]
     roots = []

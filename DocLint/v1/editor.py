@@ -10,6 +10,7 @@ from core.processor import DocumentError
 from core.xmlutils import NS, q
 from v1.analysis import Analysis, CHAPTER, PROTECTED, folded, on, plain, text_of
 from v1.design import Design, ensure
+from v1.cover import TITLE
 from v1.options import FormatOptions
 from v1.package import A, WP, IntegrityLedger, Package, canonical
 
@@ -33,8 +34,12 @@ LABELS = {
 
 class Editor:
     def __init__(self, data, options=None):
+        self.source_data = data
         self.package = Package(data)
         self.analysis = Analysis(self.package)
+        self.layout_locked = set(self.analysis.layout_policy["protected_block_ids"])
+        self.isolated_objects = set(self.analysis.layout_policy["isolated_object_ids"])
+        self.preserve_only = self.analysis.layout_policy["preserve_only"]
         self.options = (
             options
             if isinstance(options, FormatOptions)
@@ -51,11 +56,26 @@ class Editor:
         self.locked = self._locks()
         for block_id in self.locked:
             self.ledger.lock(self.analysis.elements[block_id], block_id)
-        self.design = Design(self.options.profile, self.package, self.ledger)
+        for index in self.analysis.layout_policy["protected_sections"]:
+            self.ledger.lock(self.analysis.section_nodes[index][1], f"s{index + 1}")
+        self.design = Design(
+            self.options.profile,
+            self.package,
+            self.ledger,
+            initialize=not self.preserve_only,
+        )
 
     def _validate(self):
         blocks = {b["id"]: b for b in self.analysis.blocks}
-        for block_id in self.options.preserved_candidates:
+        if set(self.options.preserved_candidates) & set(
+            self.options.unchanged_candidates
+        ):
+            raise DocumentError(
+                "Một đoạn không thể vừa giữ nguyên định dạng vừa chuyển thành văn bản thường."
+            )
+        for block_id in (
+            self.options.preserved_candidates + self.options.unchanged_candidates
+        ):
             if (
                 block_id not in blocks
                 or blocks[block_id]["role"] not in {"heading", "emphasis"}
@@ -110,7 +130,18 @@ class Editor:
                 raise DocumentError(
                     "Chỉ liên kết chú thích với ảnh/bảng liền kề đã phân tích."
                 )
-        end = self.options.cover_end or self.analysis.cover_end
+        # None requests detection; an empty string explicitly rejects a cover.
+        end = (
+            self.analysis.cover_end
+            if self.options.cover_end is None
+            else self.options.cover_end or None
+        )
+        if self.preserve_only:
+            self.cover_end = self.analysis.cover_end
+            self.cover_position = (
+                blocks[self.cover_end]["position"] if self.cover_end else -1
+            )
+            return
         if self.options.cover != "keep" and (end is None or end not in blocks):
             raise DocumentError("Cần xác nhận điểm kết thúc bìa trước khi dàn lại bìa.")
         if end is not None and (end not in blocks or blocks[end]["position"] > 50):
@@ -125,7 +156,12 @@ class Editor:
         self.cover_position = blocks[end]["position"] if end else -1
 
     def _locks(self):
-        locked = set(self.options.locked_blocks)
+        locked = (
+            set(self.options.locked_blocks)
+            | set(self.options.unchanged_candidates)
+            | self.layout_locked
+            | self.isolated_objects
+        )
         for b in self.analysis.blocks:
             if (
                 self.options.preserve_cover
@@ -326,10 +362,31 @@ class Editor:
         return changed
 
     def run(self):
+        if self.layout_locked:
+            self.warn(
+                "positioned_layout_preserved",
+                "Giữ vùng bố cục cố định",
+                "Vùng có khung chữ, hộp văn bản hoặc bảng nổi và các đoạn cùng vùng được giữ nguyên. "
+                "Không đổi lề/khổ giấy dùng chung, dựng lại bìa/mục lục, số trang, danh mục hoặc chuyển vị trí chữ ký. "
+                "Chỉ chuẩn hóa đoạn độc lập ngoài các vùng đó.",
+            )
+        if self.preserve_only:
+            self.warn(
+                "no_editable_flow",
+                "Giữ nguyên toàn bộ tài liệu",
+                "Tài liệu được dựng bằng các cụm đối tượng; không có vùng văn bản độc lập đủ điều kiện sửa. "
+                "Bản tải về giữ nguyên tệp gốc, chưa được chuẩn hóa theo mẫu.",
+            )
+            self.ledger.verify()
+            return self
         blocked_sections = {
             b.get("section")
             for b in self.analysis.blocks
-            if b["id"] in self.options.locked_blocks
+            if b["id"]
+            in set(self.options.locked_blocks)
+            | set(self.options.unchanged_candidates)
+            | self.layout_locked
+            | self.isolated_objects
         }
         blocked_sections.update(
             index
@@ -560,6 +617,11 @@ class Editor:
             self.paragraph(node, block, role)
         if self.options.mode == "layout":
             self.empty_paragraphs()
+        if self.layout_locked:
+            # These operations can alter pagination, shared fields or objects
+            # across a protected unit, even when its paragraph XML is unchanged.
+            self.ledger.verify()
+            return self
         from v1.enrich import captions, object_lists, structural_warnings
 
         sources = captions(self)
@@ -988,10 +1050,17 @@ class Editor:
         if block["protected"] or block["role"] in {"image", "empty"}:
             if block["role"] == "image":
                 self.image(p, block)
+            elif block["protected"] and block["text"]:
+                self.warn(
+                    "cover_part_preserved",
+                    "Giữ dòng bìa có cấu trúc đặc biệt",
+                    "Dòng có trường tự động, công thức hoặc đối tượng được giữ nguyên định dạng; các dòng văn bản độc lập khác vẫn được căn giữa.",
+                    block["id"],
+                )
             return
         text = folded(block["text"])
         title = (
-            bool(re.match(r"^(?:bao cao|tieu luan|do an|luan van)\b", text))
+            bool(TITLE.match(text))
             and len(text) < 110
             and not text.endswith((".", "…"))
         )
@@ -1017,7 +1086,7 @@ class Editor:
             1.0, self._available_height(block) / max(1, cover_lines * 420 + 3200)
         )
         spec = {
-            "alignment": "center" if self.options.cover == "academic" else "left",
+            "alignment": "center",
             "size": 40 if title else (28 if at_top else self.design.size),
             "before": int(self._available_height(block) * 0.08 * scale)
             if title
@@ -1032,7 +1101,7 @@ class Editor:
                 before=int(self._available_height(block) * 0.1 * scale),
                 after=360,
             )
-        if re.match(r"^de tai\b", text):
+        if re.match(r"^(de tai|topic|title)\b", text):
             spec.update(size=30, bold=True, before=320, after=240)
         if self.options.cover == "academic" and re.search(
             r"giang vien|sinh vien|ma so|ma lop|nhom", text
@@ -1089,6 +1158,9 @@ class Editor:
                     "empty_paragraphs", heading["id"], "chapter_page_break", removed
                 )
 
+    def serialize(self):
+        return self.source_data if self.preserve_only else self.package.serialize()
+
     def report(self):
         counts = Counter()
         for event in self.changes:
@@ -1100,6 +1172,12 @@ class Editor:
         return {
             "profile": self.options.profile,
             "mode": self.options.mode,
+            "layout_policy": self.analysis.layout_policy,
+            "operation_mode": "preserve_only"
+            if self.preserve_only
+            else "selective"
+            if self.layout_locked
+            else "format",
             "changes": [
                 {"code": code, "title": LABELS[code], "count": count}
                 for code, count in counts.items()

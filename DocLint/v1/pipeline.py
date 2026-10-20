@@ -18,6 +18,7 @@ def _heading_list(editor):
             block["role"] == "heading"
             and block["certainty"] == "certain"
             and block["position"] > editor.cover_position
+            and not block.get("layout_locked")
         ):
             heads[block["id"]] = block
     heads.update({b["id"]: b for b in editor.heading_blocks})
@@ -146,7 +147,7 @@ def format_document(
             for iteration in range(3):
                 if cancel.is_set():
                     raise DocumentError("Công việc đã bị hủy.")
-                output = editor.package.serialize()
+                output = editor.serialize()
                 editor.ledger.verify_bytes(output)
                 render_pdf(output, directory / "result.pdf", cancel=cancel)
                 inspection = inspect_pdf(
@@ -229,6 +230,7 @@ def format_document(
         diagnostics=diagnostics,
         status="ready"
         if render_status["available"]
+        and not editor.preserve_only
         and toc_status in {"not_requested", "verified"}
         and (editor.options.page_numbers == "keep" or editor.numbering_applied)
         else "partial",
@@ -277,7 +279,17 @@ def format_document(
             else "partial",
         },
     ]
-    output = editor.package.serialize()
+    if editor.layout_locked:
+        report["checks"].append(
+            {
+                "code": "layout_preservation",
+                "title": "Giữ nguyên vùng bố cục cố định và section dùng chung",
+                "status": "verified",
+                "locked_blocks": len(editor.layout_locked),
+                "original_file_unchanged": editor.preserve_only,
+            }
+        )
+    output = editor.serialize()
     editor.ledger.verify_bytes(output)
     temporary = directory / "result.pending.docx"
     temporary.write_bytes(output)

@@ -16,6 +16,7 @@ def review_plan(analysis):
         for b in blocks
         if b["position"] > cover_position
         and not b.get("protected")
+        and not b.get("layout_locked")
         and not b.get("region")
         and b["role"] != "toc"
     ]

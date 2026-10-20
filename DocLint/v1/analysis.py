@@ -420,6 +420,9 @@ class Analysis:
             block["section"] = index
             if index is not None and self.sections[index]["complex"]:
                 block["complex_section"] = True
+        from v1.layout_guard import layout_policy, ends_main_story_page
+
+        self.layout_policy = layout_policy(self)
         # Protected references/appendices extend from their headings to the next
         # top-level heading of another region; appendix extends to the end.
         region = None
@@ -449,7 +452,7 @@ class Analysis:
         first = self.blocks[:35]
         evidence = any(
             re.match(
-                r"^(?:dai hoc|truong|bo giao duc|bao cao|tieu luan|do an|luan van)\b",
+                r"^(?:dai hoc|truong|bo giao duc|bao cao|tieu luan|do an|luan van|(?:final |research |technical )?(?:essay|report|thesis|dissertation)|university|college|school|institute)\b|\buniversity of\b",
                 folded(b["text"]),
             )
             and (
@@ -469,11 +472,14 @@ class Analysis:
             and re.match(r"^\d", first_text["text"])
         ):
             evidence = False
+        from v1.cover import cover_label, explicit_cover_end
+
         if evidence:
-            for block in first:
-                node = self.elements[block["id"]]
+            self.cover_end = explicit_cover_end(self, first)
+            for block in first if self.cover_end is None else []:
                 boundary = (
                     block["role"] == "heading"
+                    and not cover_label(block["text"])
                     or plain(block["text"]).upper() == "MỤC LỤC"
                     or bool(self.toc_region and block["id"] == self.toc_region["start"])
                 )
@@ -488,10 +494,7 @@ class Analysis:
                     ]
                     self.cover_end = previous[-1]["id"] if previous else None
                     break
-                if node.tag == q("p") and (
-                    node.find("w:pPr/w:sectPr", NS) is not None
-                    or node.xpath('./w:r/w:br[@w:type="page"]', namespaces=NS)
-                ):
+                if ends_main_story_page(self, block):
                     self.cover_end = block["id"]
                     break
         # Compact reports can place the first chapter immediately after a title,
@@ -501,7 +504,8 @@ class Analysis:
             and self.cover_end is None
             and first_text
             and re.match(
-                r"^(bao cao|tieu luan|do an|luan van)\b", folded(first_text["text"])
+                r"^(bao cao|tieu luan|do an|luan van|(?:final |research |technical )?(?:essay|report|thesis|dissertation))\b",
+                folded(first_text["text"]),
             )
             and (
                 first_text.get("bold") or first_text["role"] in {"heading", "emphasis"}
@@ -510,10 +514,7 @@ class Analysis:
             for block in first:
                 if block["position"] <= first_text["position"]:
                     continue
-                if block["role"] == "heading" and not re.search(
-                    r"bao cao|de tai|sinh vien|giang vien|ma (?:so|lop)|nhom",
-                    folded(block["text"]),
-                ):
+                if block["role"] == "heading" and not cover_label(block["text"]):
                     previous = [b for b in first if b["position"] < block["position"]]
                     self.cover_end = previous[-1]["id"] if previous else None
                     break
@@ -523,16 +524,19 @@ class Analysis:
                 b["position"] for b in self.blocks if b["id"] == self.cover_end
             )
             self.cover_explicit = any(
-                self.elements[b["id"]].tag == q("p")
-                and (
-                    self.elements[b["id"]].find("w:pPr/w:sectPr", NS) is not None
-                    or self.elements[b["id"]].xpath(
-                        './w:r/w:br[@w:type="page"]', namespaces=NS
-                    )
-                )
+                ends_main_story_page(self, b)
                 for b in self.blocks
                 if b["position"] <= end_position
             )
+            following = next(
+                (b for b in self.blocks if b["position"] > end_position), None
+            )
+            if following and self.elements[following["id"]].tag == q("p"):
+                self.cover_explicit |= on(
+                    self.resolver.property(
+                        self.elements[following["id"]], "w:pPr/w:pageBreakBefore"
+                    )
+                )
             # An inferred cover must stop before ordinary introductory prose.
             # Blank Enter padding before a chapter is not evidence of a cover.
             if not self.cover_explicit:
@@ -543,7 +547,7 @@ class Analysis:
                     text = folded(b["text"])
                     metadata = bool(
                         re.search(
-                            r"truong|dai hoc|khoa|bao cao|tieu luan|do an|luan van|de tai|giang vien|sinh vien|ma (?:so|lop)|nhom|ho ten|nguoi (?:huong dan|thuc hien)|ha noi|ho chi minh|thang|nam\s+20",
+                            r"truong|dai hoc|khoa|bao cao|tieu luan|do an|luan van|de tai|giang vien|sinh vien|ma (?:so|lop)|nhom|ho ten|nguoi (?:huong dan|thuc hien)|ha noi|ho chi minh|thang|nam\s+20|\b(?:university|college|school|essay|report|thesis|dissertation|subject|course|instructor|supervisor|student|group|members|hanoi)\b",
                             text,
                         )
                     )
@@ -696,6 +700,7 @@ class Analysis:
             "counts": dict(counts),
             "sections": self.sections,
             "cover_end": self.cover_end,
+            "layout_policy": self.layout_policy,
             "review_plan": review_plan(self),
             "toc_region": self.toc_region,
             "summary": {

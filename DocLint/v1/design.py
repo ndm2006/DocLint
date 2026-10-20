@@ -36,7 +36,7 @@ def attrs(parent, name, values):
 
 
 class Design:
-    def __init__(self, profile_id, package, ledger):
+    def __init__(self, profile_id, package, ledger, initialize=True):
         self.profile_id = profile_id
         self.profile = get_profile(profile_id)
         self.font = self.profile["typography"]["default_font"]
@@ -45,7 +45,8 @@ class Design:
         self.package, self.ledger = package, ledger
         self.ids = {}
         self.definitions = {}
-        self.style("body")
+        if initialize:
+            self.style("body")
 
     def spec(self, role, level=0):
         p = self.profile["paragraph_rules"]

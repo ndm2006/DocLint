@@ -7,7 +7,7 @@ import platform
 import sys
 from uuid import uuid4
 
-BUILD = "v1-heading-cover-20261020"
+BUILD = "v1-selective-layout-20261020"
 BASE = Path(__file__).resolve().parents[1]
 logger = logging.getLogger("doclint")
 

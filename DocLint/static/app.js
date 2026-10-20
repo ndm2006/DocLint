@@ -68,7 +68,7 @@ function buttons() {
   $("file-input").disabled = state.busy;
   $("remove-file").disabled = state.busy;
   $("format-button").disabled = state.busy || !state.job?.analysis;
-  $("profile-select").disabled = state.busy || !state.profiles.length;
+  $("profile-select").disabled = state.busy || !state.profiles.length || state.job?.analysis?.layout_policy?.preserve_only;
   $("review").classList.toggle("ui-busy", state.busy);
   $("lint-form").setAttribute("aria-busy", String(state.busy));
 }
@@ -151,6 +151,7 @@ function isLocked(block) {
       ?.position ?? -1;
   return (
     state.locks.has(block.id) ||
+    block.layout_locked ||
     ($("cover-select").value === "keep" && block.position <= end) ||
     ($("preserve-references").checked && block.region === "references") ||
     ($("preserve-appendices").checked && block.region === "appendices")
@@ -176,6 +177,7 @@ function reviewGroups() {
 }
 function refreshLocks() {
   const blocks = state.job?.analysis?.blocks || [];
+  if (!$("cover-end").value) $("cover-select").value = "keep";
   let questions = 0;
   for (const select of $("review").querySelectorAll("select[data-group]")) {
     const group = reviewGroups().find((g) => g.id === select.dataset.group);
@@ -229,6 +231,8 @@ function refreshLocks() {
     $("automatic-summary").textContent =
       (known.size ? `${known.size} đề mục đã xác định. ` : "") +
       "Thân bài, bảng đơn giản và ảnh trong dòng dùng quy tắc an toàn; không cần chọn lại từng phần.";
+    if (state.job.analysis.layout_policy?.preserve_only)
+      $("automatic-summary").textContent = "Không có vùng văn bản độc lập đủ điều kiện sửa. Bản tải về sẽ giữ nguyên tệp gốc; chưa được chuẩn hóa theo mẫu.";
     $("toc-select").options[1].disabled = !available;
     if (!available) $("toc-select").value = "keep";
     $("toc-region-note").textContent = !available
@@ -399,7 +403,7 @@ function renderReview(meta) {
       );
     }),
   );
-  $("cover-end").value = o.cover_end || a.cover_end || "";
+  $("cover-end").value = o.cover_end !== undefined && o.cover_end !== null ? o.cover_end : a.cover_end || "";
   for (const option of $("cover-select").options)
     if (option.value !== "keep") option.disabled = !candidates.length;
   $("toc-select").replaceChildren(
@@ -415,12 +419,13 @@ function renderReview(meta) {
         g,
         "heading",
         [
-          ["keep", "Giữ làm đoạn/danh sách thường"],
+          ["keep", "Giữ nguyên định dạng"],
+          ["body", "Chuẩn hóa thành văn bản thường"],
           ["heading", `Dùng làm đề mục cấp ${g.level}`],
         ],
         commonValue(
           g.block_ids.map((id) =>
-            o.heading_levels?.[id] ? "heading" : "keep",
+            o.heading_levels?.[id] ? "heading" : o.preserved_candidates?.includes(id) ? "body" : "keep",
           ),
         ),
       ),
@@ -509,6 +514,28 @@ function renderReview(meta) {
     if (o.page_numbers !== "keep") $("numbering-style").value = o.page_numbers;
   }
   if (o.signature_position !== undefined) $("signature-end").checked = o.signature_position === "end_of_body";
+  const policy = a.layout_policy || {},
+    restricted = !!policy.protected_block_ids?.length;
+  $("layout-policy-notice").hidden = !restricted;
+  $("layout-policy-notice").textContent = policy.preserve_only
+    ? "Tài liệu được dựng bằng khung/cụm đối tượng. DocLint giữ nguyên toàn bộ tệp, không dàn lại bìa, đề mục hay mục lục của loại tài liệu này."
+    : `Giữ nguyên ${policy.protected_regions.length} vùng có khung/cụm đối tượng và các đoạn cùng vùng. Chỉ chuẩn hóa văn bản độc lập bên ngoài; giữ lề, khổ giấy dùng chung và hệ thống mục lục/số trang.`;
+  for (const id of ["cover-select", "cover-end", "toc-select", "page-numbers", "numbering-style", "caption-fields", "object-lists", "signature-end", "convert-manual-lists"])
+    $(id).disabled = restricted;
+  $("mode-select").disabled = !!policy.preserve_only;
+  if (!restricted && !Object.keys(o).length) {
+    for (const id of ["page-numbers", "caption-fields", "object-lists"])
+      $(id).checked = true;
+  }
+  if (restricted) {
+    $("cover-select").value = "keep";
+    $("toc-select").value = "keep";
+    for (const id of ["page-numbers", "caption-fields", "object-lists", "signature-end", "convert-manual-lists"])
+      $(id).checked = false;
+  }
+  $("format-button").textContent = policy.preserve_only
+    ? "Kiểm tra và giữ nguyên tệp →"
+    : restricted ? "Chuẩn hóa phần có thể sửa →" : "Hoàn thiện tài liệu →";
   profileChanged();
   $("mode-select").dispatchEvent(new Event("change"));
   renderLocks();
@@ -526,6 +553,8 @@ function collectHeadingChoices() {
     ...(options.heading_levels || {}),
   };
   const preserved = new Set(options.preserved_candidates || []);
+  const unchanged = new Set(options.unchanged_candidates || []);
+  for (const id of [...preserved, ...unchanged]) delete headings[id];
   for (const select of $("outline-list").querySelectorAll(
     "select[data-group]",
   )) {
@@ -536,9 +565,15 @@ function collectHeadingChoices() {
       if (select.value === "heading") {
         headings[id] = group.level;
         preserved.delete(id);
-      } else if (select.value === "keep") {
+        unchanged.delete(id);
+      } else if (select.value === "body") {
         delete headings[id];
         preserved.add(id);
+        unchanged.delete(id);
+      } else if (select.value === "keep") {
+        delete headings[id];
+        preserved.delete(id);
+        unchanged.add(id);
       }
     }
   }
@@ -558,12 +593,16 @@ function collectHeadingChoices() {
           (b) => b.id === id && b.position > end && !isLocked(b),
         ),
     ),
+    unchanged: [...unchanged].filter(
+      (id) => !headings[id] && !preserved.has(id) &&
+        state.job.analysis.blocks.some((b) => b.id === id && b.position > end && !isLocked(b)),
+    ),
   };
 }
 function collectOptions() {
   const p = state.reviewPlan,
     saved = state.job.options || {};
-  const { headings, preserved } = collectHeadingChoices();
+  const { headings, preserved, unchanged } = collectHeadingChoices();
   const decisions = { ...(saved.layout_decisions || {}) },
     links = { ...(saved.caption_links || {}) },
     tables = new Set(saved.table_headers || []);
@@ -601,13 +640,14 @@ function collectOptions() {
     mode: $("mode-select").value,
     heading_levels: headings,
     preserved_candidates: preserved,
+    unchanged_candidates: unchanged,
     layout_decisions: decisions,
     caption_links: links,
     table_headers: [...tables],
     locked_blocks: [...state.locks],
     preserve_cover: $("cover-select").value === "keep",
     cover: $("cover-select").value,
-    cover_end: $("cover-end").value || null,
+    cover_end: $("cover-end").value,
     preserve_references: $("preserve-references").checked,
     preserve_appendices: $("preserve-appendices").checked,
     toc: $("toc-select").value,
@@ -793,6 +833,9 @@ function listEntry(title, count, description, page) {
 }
 function renderResult(meta) {
   const r = meta.report;
+  const preserveOnly = r.operation_mode === "preserve_only";
+  $("results-title").textContent = preserveOnly ? "Đã giữ nguyên tài liệu." : r.operation_mode === "selective" ? "Đã chỉnh phần có thể sửa, giữ vùng đặc biệt." : "Gọn gàng hơn. Có kiểm chứng.";
+  $("download-button").textContent = preserveOnly ? "Tải Word giữ nguyên ↓" : "Tải Word đã xử lý ↓";
   $("results").hidden = false;
   $("result-name").textContent =
     meta.filename +
@@ -807,13 +850,15 @@ function renderResult(meta) {
   $("warning-count").textContent = String(r.warnings.length);
   $("partial-note").hidden = meta.status !== "partial";
   $("partial-note").textContent =
-    "Đã đối chiếu nội dung, nhưng một số bước xem trước hoặc mục lục chưa hoàn tất. Đọc cảnh báo và kiểm tra bằng Word; có thể quay lại đổi phương án.";
+    preserveOnly
+      ? "Không có vùng văn bản độc lập đủ điều kiện sửa. Tệp tải về giữ nguyên bản gốc, chưa được chuẩn hóa theo mẫu."
+      : "Đã đối chiếu nội dung, nhưng một số bước yêu cầu được giữ lại hoặc chưa hoàn tất. Đọc cảnh báo và kiểm tra bằng Word; có thể quay lại đổi phương án.";
   $("changes-list").replaceChildren(
     ...(r.changes.length
       ? r.changes.map((c) => listEntry(c.title, c.count))
       : [
           listEntry(
-            "Không cần thay đổi thêm trong phạm vi đã chọn",
+            preserveOnly ? "Không thay đổi tệp gốc" : "Không cần thay đổi thêm trong phạm vi đã chọn",
             0,
             "Hệ thống không sửa để tăng số lượng thay đổi.",
           ),

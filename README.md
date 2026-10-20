@@ -34,11 +34,13 @@ Mở trình duyệt trên chính máy chạy ứng dụng, nhập `http://127.0.
 
 Trong giao diện có **Tải báo cáo mẫu có lỗi bố cục**. Đây là tài liệu tổng hợp, không chứa thông tin thật của người dùng. Có thể tạo lại bằng `python DocLint/examples/create_demo.py /đường/dẫn/mới.docx`.
 
+Bản đối chiếu `case_00` với bìa tối giản đã căn giữa: [Word](DocLint/examples/case_00_bia_toi_gian_da_sua.docx) · [PDF](DocLint/examples/case_00_bia_toi_gian_da_sua.pdf). Đây là mẫu tổng hợp trong bộ kiểm thử; phần trang ngang được giữ.
+
 Sau khi tải lên:
 
-- Hệ thống giữ Heading sẵn có và xét cây đề mục theo từng chương/phần/bài. Ví dụ: `BÀI TẬP 1` là cấp 1, `1. Giới thiệu` bên trong là cấp 2, các tiểu mục `a), b)` có nội dung riêng là cấp 3; số mục được bắt đầu lại ở bài tiếp theo. Chuỗi La Mã được phân biệt với chữ cái A, B, C, D; danh sách ngắn liên tiếp vẫn cần duyệt. Chỉ các nhóm còn phân vân mới hiện câu hỏi; chọn một lần cho cả nhóm, mặc định giữ nguyên.
+- Hệ thống giữ Heading sẵn có và xét cây đề mục theo từng chương/phần/bài. Ví dụ: `BÀI TẬP 1` là cấp 1, `1. Giới thiệu` bên trong là cấp 2, các tiểu mục `a), b)` có nội dung riêng là cấp 3; số mục được bắt đầu lại ở bài tiếp theo. Chuỗi La Mã được phân biệt với chữ cái A, B, C, D; danh sách ngắn liên tiếp vẫn cần duyệt. Nhóm còn phân vân có ba lựa chọn riêng: **Giữ nguyên định dạng** (mặc định), **Chuẩn hóa thành văn bản thường**, hoặc **Dùng làm đề mục**. Lựa chọn giữ nguyên được đối chiếu XML chính xác, gồm phông, cỡ chữ, căn lề và cấu trúc.
 - Chọn HUST hoặc báo cáo phổ thông. Mẫu HUST xuất phát từ cấu hình của dự án, chưa phải chứng nhận đúng mọi quy định trường/khoa.
-- Giữ bìa hoặc chọn mẫu học thuật/tối giản để dàn phần thông tin bìa hiện có thành trang riêng. Mẫu học thuật căn giữa thông tin và bảng bìa, bỏ thụt lề sót ở logo; chế độ layout làm sạch Space/Tab đầu và cuối từng dòng bìa nhưng giữ khoảng cách bên trong. Bảng thành viên dùng khoảng cách ô gọn hơn. Bộ nhận diện không gộp đoạn mở đầu thông thường vào bìa chỉ vì nó đứng trước chương đầu.
+- Giữ bìa hoặc chọn mẫu học thuật/tối giản để dàn phần thông tin bìa hiện có thành trang riêng. Cả hai mẫu căn giữa các dòng văn bản an toàn và bảng bìa, bỏ thụt lề sót ở logo; chế độ layout làm sạch Space/Tab đầu và cuối từng dòng bìa nhưng giữ khoảng cách bên trong. Bảng thành viên dùng khoảng cách ô gọn hơn. Bộ nhận diện hỗ trợ nhãn tiếng Việt/Anh, ưu tiên ngắt trang/section có sẵn và phân biệt Heading dùng trang trí bìa với đề mục thân bài. Chương và phần mở đầu vẫn nằm ngoài bìa.
 - Căn bằng Space/Tab chỉ được hỏi theo nhóm khi ý đồ chưa rõ. Chế độ giữ nguyên ký tự, phạm vi bảng/ảnh, số trang và tìm vùng khóa nằm trong **Tùy chọn nâng cao**; không liệt kê tất cả đoạn để bạn chọn.
 - Chỉ hỏi xác nhận hàng đầu cho nhóm bảng có dấu hiệu giống tiêu đề cột. Bảng đã có hàng tiêu đề hoặc chú thích chỉ có một đối tượng phù hợp không cần chọn lại.
 - Mục lục chỉ có hai lựa chọn phù hợp với tài liệu: giữ hiện tại hoặc tạo/thay thế. Mục lục bắt đầu trên trang riêng và nội dung bắt đầu ở trang sau mục lục; mục lục dài được phép tiếp tục sang nhiều trang.
@@ -49,6 +51,10 @@ Giao diện mặc định dàn bìa học thuật khi nhận diện được bì
 Caption có thể chuyển sang SEQ/REF mà giữ nhãn hiện tại; danh mục hình/bảng và viết tắt lấy từ thông tin sẵn có. Danh sách Word thật và việc chuyển khối chữ ký về cuối thân bài là tùy chọn nâng cao. Chi tiết theo bảy mức ưu tiên và giới hạn: [Đối chiếu đánh giá bố cục](docs/PRIORITY_LAYOUT_REVIEW.md).
 
 Mỗi lần đổi phương án đều xử lý từ **bản gốc**, tránh tích lũy những thay đổi không mong muốn.
+
+Tài liệu có khung chữ đặt theo tọa độ được xử lý chọn lọc: giữ nguyên vùng khung cùng các đoạn chia sẻ vùng đó; chỉ chỉnh phần văn bản độc lập bên ngoài. Ranh giới được xác định từ ngắt trang/ngắt section thật. Khi chưa tách được an toàn, giữ cả vùng rộng hơn. Lề/khổ giấy dùng chung và các thao tác có thể xê dịch vùng được giữ (dựng bìa, mục lục, số trang, danh mục, chuyển chữ ký) được bảo vệ. Nhãn trong hình gắn với một đoạn được giữ cùng đối tượng, vẫn cho phép xử lý thân bài độc lập. Xem [cơ chế bảo vệ bố cục](docs/SELECTIVE_LAYOUT.md).
+
+Nếu toàn tài liệu được dựng bằng các cụm đối tượng, tệp tải về giữ nguyên từng byte của tệp gốc, giao diện ghi **Đã giữ nguyên tài liệu**, trạng thái `partial`; không coi là đã chuẩn hóa. Hãy thử lại từ bản gốc nếu bản xuất cũ đã bị lệch.
 
 ## Đã triển khai và phạm vi an toàn
 
