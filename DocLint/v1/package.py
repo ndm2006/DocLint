@@ -287,6 +287,64 @@ class IntegrityLedger:
             )
         return removed
 
+    def trim_cover_edges(self, paragraph, block_id):
+        """Remove only ordinary Space/Tab padding at each cover line's edges.
+
+        The caller explicitly formats an unlocked cover in layout mode. Interior
+        spacing, NBSP, line/page breaks, field results and objects stay intact.
+        Preflight the whole paragraph before making any change.
+        """
+        allowed = {
+            q(n) for n in ("rPr", "t", "tab", "br", "cr", "lastRenderedPageBreak")
+        }
+        if any(
+            child.tag not in {q("pPr"), q("r"), q("bookmarkStart"), q("bookmarkEnd")}
+            for child in paragraph
+        ):
+            return 0
+        runs = paragraph.findall(q("r"))
+        if any(node.tag not in allowed for run in runs for node in run):
+            return 0
+        lines, line = [], []
+        for run in runs:
+            for node in run:
+                if node.tag in {q("br"), q("cr")}:
+                    lines.append(line)
+                    line = []
+                elif node.tag in {q("t"), q("tab")}:
+                    line.append(node)
+        lines.append(line)
+        removed = 0
+        for line in lines:
+            for nodes, side in ((line, "left"), (list(reversed(line)), "right")):
+                for node in nodes:
+                    if node.getparent() is None:
+                        continue
+                    if node.tag == q("tab"):
+                        expected = self.pairs[node]
+                        expected.getparent().remove(expected)
+                        node.getparent().remove(node)
+                        removed += 1
+                    else:
+                        before = node.text or ""
+                        after = (
+                            before.lstrip(" ") if side == "left" else before.rstrip(" ")
+                        )
+                        self.pairs[node].text = node.text = after
+                        removed += len(before) - len(after)
+                        if after:
+                            break
+        if removed:
+            self.events.append(
+                {
+                    "rule": "cover_line_edges",
+                    "operation": "authorized_whitespace",
+                    "block_id": block_id,
+                    "count": removed,
+                }
+            )
+        return removed
+
     def _empty_metadata_safe(self, paragraph):
         w14 = "http://schemas.microsoft.com/office/word/2010/wordml"
         allowed = {q(n) for n in ("rsidR", "rsidRDefault", "rsidP")}

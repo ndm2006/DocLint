@@ -36,9 +36,9 @@ Trong giao diện có **Tải báo cáo mẫu có lỗi bố cục**. Đây là 
 
 Sau khi tải lên:
 
-- Hệ thống giữ Heading sẵn có và tự nhận các chuỗi đề mục có số khi đủ dấu hiệu nhất quán. Chỉ các nhóm còn phân vân mới hiện câu hỏi; chọn một lần cho cả nhóm, mặc định giữ nguyên.
+- Hệ thống giữ Heading sẵn có và xét cây đề mục theo từng chương/phần/bài. Ví dụ: `BÀI TẬP 1` là cấp 1, `1. Giới thiệu` bên trong là cấp 2, các tiểu mục `a), b)` có nội dung riêng là cấp 3; số mục được bắt đầu lại ở bài tiếp theo. Chuỗi La Mã được phân biệt với chữ cái A, B, C, D; danh sách ngắn liên tiếp vẫn cần duyệt. Chỉ các nhóm còn phân vân mới hiện câu hỏi; chọn một lần cho cả nhóm, mặc định giữ nguyên.
 - Chọn HUST hoặc báo cáo phổ thông. Mẫu HUST xuất phát từ cấu hình của dự án, chưa phải chứng nhận đúng mọi quy định trường/khoa.
-- Giữ bìa hoặc chọn mẫu học thuật/tối giản để dàn phần thông tin bìa hiện có thành trang riêng. Bộ nhận diện không gộp đoạn mở đầu thông thường vào bìa chỉ vì nó đứng trước chương đầu.
+- Giữ bìa hoặc chọn mẫu học thuật/tối giản để dàn phần thông tin bìa hiện có thành trang riêng. Mẫu học thuật căn giữa thông tin và bảng bìa, bỏ thụt lề sót ở logo; chế độ layout làm sạch Space/Tab đầu và cuối từng dòng bìa nhưng giữ khoảng cách bên trong. Bảng thành viên dùng khoảng cách ô gọn hơn. Bộ nhận diện không gộp đoạn mở đầu thông thường vào bìa chỉ vì nó đứng trước chương đầu.
 - Căn bằng Space/Tab chỉ được hỏi theo nhóm khi ý đồ chưa rõ. Chế độ giữ nguyên ký tự, phạm vi bảng/ảnh, số trang và tìm vùng khóa nằm trong **Tùy chọn nâng cao**; không liệt kê tất cả đoạn để bạn chọn.
 - Chỉ hỏi xác nhận hàng đầu cho nhóm bảng có dấu hiệu giống tiêu đề cột. Bảng đã có hàng tiêu đề hoặc chú thích chỉ có một đối tượng phù hợp không cần chọn lại.
 - Mục lục chỉ có hai lựa chọn phù hợp với tài liệu: giữ hiện tại hoặc tạo/thay thế. Mục lục bắt đầu trên trang riêng và nội dung bắt đầu ở trang sau mục lục; mục lục dài được phép tiếp tục sang nhiều trang.

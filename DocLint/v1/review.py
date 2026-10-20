@@ -3,6 +3,7 @@
 from collections import defaultdict
 import re
 from v1.analysis import folded, text_of
+from v1.hierarchy import ROOT
 
 
 def review_plan(analysis):
@@ -22,17 +23,21 @@ def review_plan(analysis):
     for block in eligible:
         if block["role"] != "heading" or block["certainty"] == "certain":
             continue
+        if block.get("heading_scope"):
+            # Scoped sequences already went through parent/child validation.
+            # Do not promote them a second time without a supported parent.
+            continue
         text = folded(block["text"])
         kind = (
             "chapter"
-            if re.match(r"^(chuong|chapter|phan|part)\s+(\d+|[ivxlcdm]+)\b", text)
+            if ROOT.match(text)
             else "decimal"
             if re.match(r"^\d+(?:\.\d+)+\.?\s", text)
             else "single"
         )
-        families[(kind, block["level"])].append(block)
-    automatic = {}
-    for (kind, _), members in families.items():
+        families[(kind, block["level"], block.get("heading_scope"))].append(block)
+    automatic = {b["id"]: b["level"] for b in eligible if b.get("hierarchy_auto")}
+    for (kind, _, _scope), members in families.items():
         separated = all(
             any(
                 b["role"] == "body" and b["text"]
@@ -44,7 +49,7 @@ def review_plan(analysis):
         labels = []
         for b in members:
             match = re.match(
-                r"^(?:(?:chuong|chapter|phan|part)\s+)?(\d+(?:\.\d+)*)",
+                r"^(?:(?:chuong|chapter|phan|part|bai tap|exercise|bai|section)\s+)?(\d+(?:\.\d+)*)",
                 folded(b["text"]),
             )
             labels.append(
@@ -70,7 +75,7 @@ def review_plan(analysis):
             text = folded(b["text"])
             kind = (
                 "chapter"
-                if re.match(r"^(chuong|chapter|phan|part)\s", text)
+                if ROOT.match(text)
                 else "decimal"
                 if re.match(r"^\d+(?:\.\d+)+\.?\s", text)
                 else "numbered"
@@ -80,7 +85,7 @@ def review_plan(analysis):
             grouped[(kind, b.get("level") or 1)].append(b)
     heading_groups = []
     labels = {
-        "chapter": "Các dòng có nhãn chương/phần",
+        "chapter": "Các dòng có nhãn chương/phần/bài",
         "decimal": "Các dòng đánh số nhiều cấp",
         "numbered": "Các dòng đánh số đơn",
         "emphasis": "Các dòng ngắn được nhấn mạnh",

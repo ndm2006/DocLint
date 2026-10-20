@@ -371,7 +371,7 @@ function renderReview(meta) {
   );
   $("automatic-list").replaceChildren(
     ...[
-      "Giữ cấp của tiêu đề Word đã có; nhận các chuỗi đề mục đánh số nhất quán.",
+      "Giữ cấp của tiêu đề Word đã có; xét chương/phần/bài và các mục con theo từng phần, kể cả khi số mục bắt đầu lại.",
       "Chuẩn hóa thân bài, bảng đơn giản và ảnh trong dòng theo mẫu.",
       "Tự gắn chú thích khi chỉ có một đối tượng liền kề phù hợp.",
       "Đồng bộ định dạng phần tham khảo/phụ lục; giữ nội dung, mã nguồn, công thức và vùng khóa. Code rõ ràng có phông đơn cách và nền nhẹ.",

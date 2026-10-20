@@ -8,7 +8,7 @@ from PIL import Image
 from core.autofix import SYMBOL_FONTS
 from core.processor import DocumentError
 from core.xmlutils import NS, q
-from v1.analysis import Analysis, PROTECTED, folded, on, plain, text_of
+from v1.analysis import Analysis, CHAPTER, PROTECTED, folded, on, plain, text_of
 from v1.design import Design, ensure
 from v1.options import FormatOptions
 from v1.package import A, WP, IntegrityLedger, Package, canonical
@@ -298,6 +298,8 @@ class Editor:
                     "rightChars",
                     "start",
                     "end",
+                    "startChars",
+                    "endChars",
                 ),
             )
         if role == "heading":
@@ -400,9 +402,7 @@ class Editor:
                 if level == 1 and (
                     block.get("region")
                     or any(h["level"] == 1 for h in self.heading_blocks)
-                    and re.match(
-                        r"^(chuong|chapter|phan|part)\s", folded(block["text"])
-                    )
+                    and CHAPTER.match(folded(block["text"]))
                 ):
                     from v1.fields import _separate_before
 
@@ -638,6 +638,7 @@ class Editor:
             and not table.xpath(PROTECTED + " | .//w:tbl", namespaces=NS)
         ):
             self.prop(ensure(table, "tblPr"), "jc", {"val": "center"})
+            self.prop(ensure(table, "tblPr"), "tblInd", {"w": 0, "type": "dxa"})
             if block.get("format_safe"):
                 available = self._available_width(block)
                 grid = table.findall("w:tblGrid/w:gridCol", NS)
@@ -671,6 +672,7 @@ class Editor:
                         "text": plain(text_of(p)),
                         "role": "body",
                         "protected": False,
+                        "cover_cell": True,
                     },
                 )
             self.log("cover", block["id"], "cover_table_alignment")
@@ -879,6 +881,23 @@ class Editor:
                     ext.set("cy", str(ny))
         props = ensure(p, "pPr")
         self.prop(props, "jc", {"val": "center"})
+        if block["position"] <= self.cover_position and self.options.cover != "keep":
+            self.prop(
+                props,
+                "ind",
+                {"left": 0, "right": 0, "firstLine": 0},
+                (
+                    "hanging",
+                    "firstLineChars",
+                    "hangingChars",
+                    "leftChars",
+                    "rightChars",
+                    "start",
+                    "end",
+                    "startChars",
+                    "endChars",
+                ),
+            )
         self.prop(props, "spacing", {"before": 120, "after": 120})
         self.prop(props, "keepLines", {"val": 1})
         if canonical(p) != before:
@@ -1021,10 +1040,12 @@ class Editor:
             spec.update(alignment="center", left=0, before=200)
         if len(text.split()) > 20 or text.endswith((".", "…")):
             spec.update(size=22, bold=False, before=120, after=120, color="59645F")
+        if block.get("cover_cell"):
+            spec.update(size=min(spec["size"], 24), before=40, after=40, line=260)
         if self.options.mode == "layout":
-            removed = self.ledger.trim_leading(p, block["id"], permit_tabs=True)
+            removed = self.ledger.trim_cover_edges(p, block["id"])
             if removed:
-                self.log("whitespace", block["id"], "cover_leading_layout", removed)
+                self.log("whitespace", block["id"], "cover_line_edges", removed)
         self.paragraph(p, block, "cover", override=spec)
         self.prop(ensure(p, "pPr"), "outlineLvl", {"val": 9})
 

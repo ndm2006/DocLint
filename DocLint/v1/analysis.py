@@ -90,7 +90,11 @@ class StyleResolver:
             return None
 
 
-CHAPTER = re.compile(r"^(?:chuong|chapter|phan|part)\s+(?:\d+|[ivxlcdm]+)\b", re.I)
+CHAPTER = re.compile(
+    r"^(?:chuong|chapter|phan|part|bai tap|exercise|bai|section)\s+"
+    r"(?:\d+|[ivxlcdm]+)(?=[.:)\s]|$)",
+    re.I,
+)
 DECIMAL = re.compile(r"^(\d+(?:\.\d+){1,5})\.?\s+\S")
 SINGLE = re.compile(r"^(\d+)[.)]\s+\S")
 BULLET = re.compile(r"^(?:[-•▪●]|[a-z][.)]|\d+[.)])\s+")
@@ -181,12 +185,20 @@ class Analysis:
                         "suggested",
                         "Tên phần đặc biệt; cần xác nhận trước khi gán Heading.",
                     )
-                elif CHAPTER.match(folded(display)) and len(display) < 180:
+                elif (
+                    CHAPTER.match(folded(display))
+                    and len(display) < 300
+                    and (
+                        bold
+                        or display.isupper()
+                        or re.match(r"^(chuong|chapter|phan|part)\s", folded(display))
+                    )
+                ):
                     role, level, certainty, reason = (
                         "heading",
                         1,
                         "suggested",
-                        "Có nhãn chương/phần; cần xác nhận.",
+                        "Có nhãn chương/phần/bài; đối chiếu với các đề mục trong phần này.",
                     )
                 elif (match := DECIMAL.match(display)) and len(display) < 160:
                     role, level, certainty, reason = (
@@ -551,6 +563,10 @@ class Analysis:
                     if b["text"] or b["role"] in {"image", "table"}:
                         previous = b["id"]
                 self.cover_end = previous
+        # Refine manual numbering only after identifying the cover and TOC.
+        from v1.hierarchy import refine_hierarchy
+
+        refine_hierarchy(self)
         # Associate captions only with adjacent objects, allowing empty paragraphs.
         nonempty = [b for b in self.blocks if b["role"] != "empty"]
         for index, block in enumerate(nonempty):
