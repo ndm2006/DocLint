@@ -109,6 +109,7 @@ def format_document(
     }
     toc_status = "not_requested" if not editor.toc_entries else "unresolved"
     stage_warnings = []
+    diagnostics = []
     if preview:
         progress("Đang dựng PDF và kiểm tra bố cục theo trang")
         try:
@@ -155,6 +156,8 @@ def format_document(
                     entry["page"] = label
             stage_warnings.extend(inspection["warnings"])
         except PreviewError as exc:
+            if exc.diagnostic:
+                diagnostics.append(exc.diagnostic)
             render_status = {"available": False, "reason": str(exc)}
             stage_warnings.append(
                 {
@@ -186,6 +189,7 @@ def format_document(
         layout=inspection
         or {"pages": [], "page_count": 0, "headings": {}, "warnings": []},
         options=editor.options.model_dump(),
+        diagnostics=diagnostics,
         status="ready"
         if render_status["available"]
         and toc_status in {"not_requested", "verified"}

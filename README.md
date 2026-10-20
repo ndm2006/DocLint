@@ -16,6 +16,10 @@ Bạn đã có Python thì giữ bản đang dùng. Cần Python 3.12–3.14 và
 
 Nếu chưa cài LibreOffice, web vẫn hoạt động và báo kết quả **chưa hoàn tất** cho những bước cần dựng PDF; không giả lập bản xem trước. Nếu cài Office ở vị trí riêng, đặt biến `DOCLINT_SOFFICE` là đường dẫn đầy đủ đến `soffice.exe` rồi chạy lại.
 
+Trên Windows, nếu có `soffice.com` cạnh `soffice.exe`, DocLint ưu tiên bộ gọi console để chờ quá trình chuyển PDF kết thúc. Bộ dựng có thư mục cấu hình và AppData tạm riêng. Tệp khởi động cũng tự bổ sung `pip` bằng `ensurepip` nếu môi trường ảo còn thiếu.
+
+Nếu web báo lỗi ngay sau khi tải lên: bản mới giữ màn hình duyệt khi cấu trúc Word đã đọc được nhưng bộ xem trước gặp lỗi. Khi xuất hiện nút **Tải thông tin lỗi để hỗ trợ**, tải JSON và gửi cùng mô tả bước lỗi. JSON chứa mã tham chiếu, giai đoạn, loại lỗi, vị trí code và phiên bản môi trường; không chứa nội dung, tên tài liệu, đường dẫn máy cá nhân hoặc thông báo ngoại lệ thô. Chỉ tải được trong thời hạn phiên. Lỗi cấu trúc thực sự vẫn chặn xuất Word. Khi dùng bản code mới, hãy dừng Terminal cũ trước khi khởi động lại; launcher sẽ không tự mở một bản build cũ đang chiếm cổng.
+
 Chạy thủ công trong PowerShell, tại thư mục có README:
 
 ```powershell
@@ -112,6 +116,7 @@ Cài LibreOffice và phông bằng trình quản lý gói của máy chạy. Mô
 | POST | `/api/v1/jobs/{id}/format` | JSON lựa chọn; HTTP 202; luôn bắt đầu từ bản gốc |
 | GET | `/api/v1/jobs/{id}/download` | Word sau kiểm chứng |
 | GET | `/api/v1/jobs/{id}/report` | JSON nhật ký và kết quả kiểm tra |
+| GET | `/api/v1/jobs/{id}/diagnostic` | Thông tin kỹ thuật an toàn khi gặp lỗi; dùng được cả khi chưa có kết quả |
 | GET | `/api/v1/jobs/{id}/preview/{original\|result}.pdf` | PDF tương ứng |
 | GET | `/api/v1/jobs/{id}/pages/{original\|result}/{n}.png` | Ảnh trang theo nhu cầu |
 | DELETE | `/api/v1/jobs/{id}` | Hủy và xóa; 204 khi xong, 202 nếu đang dừng |

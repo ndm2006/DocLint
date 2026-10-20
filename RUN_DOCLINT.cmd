@@ -7,6 +7,11 @@ if not exist ".venv\Scripts\python.exe" (
     if errorlevel 1 py -3 -m venv .venv
     if errorlevel 1 goto error
 )
+".venv\Scripts\python.exe" -m pip --version >nul 2>&1
+if errorlevel 1 (
+    ".venv\Scripts\python.exe" -m ensurepip --upgrade
+    if errorlevel 1 goto error
+)
 ".venv\Scripts\python.exe" -m pip install -r "DocLint\requirements.txt"
 if errorlevel 1 goto error
 ".venv\Scripts\python.exe" "DocLint\launch.py"

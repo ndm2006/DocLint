@@ -454,6 +454,7 @@ function startExpiry() {
 }
 async function applyJob(meta) {
   state.job = meta;
+  $("diagnostic-tools").hidden = !meta.diagnostic;
   remember(meta.id);
   $("upload-workspace").hidden = true;
   $("session-bar").hidden = false;
@@ -753,12 +754,12 @@ async function download(kind, button) {
   button.disabled = true;
   error();
   const meta = state.job;
-  const url =
-    kind === "word"
-      ? meta.urls.download
-      : kind === "pdf"
-        ? meta.urls.result_pdf
-        : meta.urls.report;
+  const url = {
+    word: meta.urls.download,
+    pdf: meta.urls.result_pdf,
+    report: meta.urls.report,
+    diagnostic: meta.urls.diagnostic,
+  }[kind];
   try {
     const blob = await (await request(url)).blob();
     const link = document.createElement("a");
@@ -769,7 +770,9 @@ async function download(kind, button) {
         ? meta.filename.replace(/\.docx$/i, "_doclint.docx")
         : kind === "pdf"
           ? "doclint-result.pdf"
-          : "doclint-report.json";
+          : kind === "diagnostic"
+            ? "doclint-diagnostic.json"
+            : "doclint-report.json";
     document.body.append(link);
     link.click();
     link.remove();
@@ -791,7 +794,11 @@ $("pdf-button").addEventListener("click", () =>
 $("report-button").addEventListener("click", () =>
   download("report", $("report-button")),
 );
+$("diagnostic-button").addEventListener("click", () =>
+  download("diagnostic", $("diagnostic-button")),
+);
 function reset() {
+  $("diagnostic-tools").hidden = true;
   clearTimeout(state.poll);
   clearInterval(state.timer);
   remember(null);

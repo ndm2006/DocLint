@@ -12,6 +12,7 @@ import time
 from uuid import UUID, uuid4
 from core.processor import DocumentError
 from v1.analysis import Analysis
+from v1.diagnostics import record_failure
 from v1.package import Package
 from v1.pipeline import format_document
 from v1.renderer import PreviewError, render_pdf, inspect_pdf
@@ -77,6 +78,7 @@ class JobStore:
             "analysis": None,
             "original_preview": {"available": False, "reason": "Chưa dựng"},
             "report": None,
+            "diagnostic": None,
         }
         try:
             (folder / "original.docx").write_bytes(data)
@@ -123,6 +125,7 @@ class JobStore:
             "delete": f"/api/v1/jobs/{job_id}",
             "download": f"/api/v1/jobs/{job_id}/download",
             "report": f"/api/v1/jobs/{job_id}/report",
+            "diagnostic": f"/api/v1/jobs/{job_id}/diagnostic",
             "original_pdf": f"/api/v1/jobs/{job_id}/preview/original.pdf",
             "result_pdf": f"/api/v1/jobs/{job_id}/preview/result.pdf",
         }
@@ -260,11 +263,13 @@ class JobManager:
 
     def execute(self, job_id, action, options, cancel):
         folder = self.store.folder(job_id)
+        phase = "read_original"
         try:
             if cancel.is_set():
                 return
             data = (folder / "original.docx").read_bytes()
             if action == "analyze":
+                phase = "analyze_structure"
                 self.store.update(
                     job_id, status="analyzing", stage="Đang nhận diện cấu trúc tài liệu"
                 )
@@ -282,15 +287,19 @@ class JobManager:
                     }
                 except PreviewError as exc:
                     preview = {"available": False, "reason": str(exc)}
+                    if exc.diagnostic:
+                        preview["diagnostic"] = exc.diagnostic
                 if not cancel.is_set():
                     self.store.update(
                         job_id,
                         status="review",
                         stage="Hãy duyệt cấu trúc và chọn phạm vi sửa",
                         original_preview=preview,
+                        diagnostic=preview.get("diagnostic"),
                         error=None,
                     )
             else:
+                phase = "format_document"
                 self.store.update(job_id, status="formatting", stage="Đang chuẩn hóa")
                 for name in ("result.docx", "result.pdf"):
                     (folder / name).unlink(missing_ok=True)
@@ -308,6 +317,7 @@ class JobManager:
                         status=report["status"],
                         stage="Đã đối chiếu và xuất bản riêng",
                         report=report,
+                        diagnostic=next(iter(report.get("diagnostics", [])), None),
                         error=None,
                     )
         except DocumentError as exc:
@@ -318,12 +328,15 @@ class JobManager:
                     error=str(exc),
                     stage="Chưa thể hoàn tất; hãy xem thông báo",
                 )
-        except Exception:
+        except Exception as exc:
             if not cancel.is_set():
-                # No document text, filenames, paths, or raw renderer output in logs/API.
+                detail = record_failure(exc, phase)
                 self.store.update(
                     job_id,
                     status="review" if action == "format" else "failed",
-                    error="Không xử lý được tài liệu này. Bản gốc vẫn được giữ để bạn thử lại.",
+                    error="DocLint gặp lỗi khi "
+                    + ("đọc cấu trúc tài liệu" if action == "analyze" else "dàn trang")
+                    + f". Bản gốc vẫn được giữ. Mã chẩn đoán: {detail['reference']}.",
+                    diagnostic=detail,
                     stage="Công việc chưa hoàn tất",
                 )

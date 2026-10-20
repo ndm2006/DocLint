@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from core.processor import DocumentError, MAX_UPLOAD
 from v1.editor import Editor
+from v1.diagnostics import BUILD
 from v1.options import FormatOptions
 from v1.renderer import capabilities, page_png, PreviewError
 
@@ -42,6 +43,7 @@ def attach_routes(app, manager):
     async def get_capabilities():
         return {
             "version": "1.0",
+            "build": BUILD,
             **capabilities(),
             "max_upload_mb": 15,
             "queue_capacity": manager.queue.maxsize,
@@ -155,6 +157,7 @@ def attach_routes(app, manager):
                 revision=revision,
                 options=options.model_dump(),
                 error=None,
+                diagnostic=None,
             )
             if not manager.submit(job_id, "format", options.model_dump()):
                 store.update(job_id, status="review")
@@ -183,6 +186,19 @@ def attach_routes(app, manager):
             media_type="application/json",
             headers={
                 "Content-Disposition": 'attachment; filename="doclint-report.json"'
+            },
+        )
+
+    @app.get("/api/v1/jobs/{job_id}/diagnostic")
+    async def download_diagnostic(job_id: str):
+        meta = require(job_id)
+        detail = meta.get("diagnostic")
+        if not detail:
+            raise HTTPException(409, "Phiên này chưa có thông tin lỗi kỹ thuật.")
+        return JSONResponse(
+            detail,
+            headers={
+                "Content-Disposition": 'attachment; filename="doclint-diagnostic.json"'
             },
         )
 

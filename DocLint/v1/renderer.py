@@ -6,6 +6,7 @@ OpenXML engine remains authoritative; the renderer produces PDF only.
 
 from contextlib import closing
 from copy import copy
+from functools import wraps
 from io import BytesIO
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import threading
 import zipfile
@@ -22,6 +24,7 @@ import pypdfium2 as pdfium
 from lxml import etree
 from core.xmlutils import NS, q, parse_xml
 from v1.analysis import plain
+from v1.diagnostics import record_failure
 
 PDF_LOCK = threading.RLock()  # PDFium is not thread-safe.
 MAX_PAGES = 120
@@ -29,18 +32,55 @@ RENDER_TIMEOUT = 60
 
 
 class PreviewError(RuntimeError):
-    pass
+    def __init__(self, message, diagnostic=None):
+        super().__init__(message)
+        self.diagnostic = diagnostic
+
+
+def _preview_guard(phase):
+    def decorate(operation):
+        @wraps(operation)
+        def guarded(*args, **kwargs):
+            try:
+                return operation(*args, **kwargs)
+            except PreviewError:
+                raise
+            except Exception as exc:
+                detail = record_failure(exc, phase)
+                raise PreviewError(
+                    "Bộ xem trước gặp lỗi; bạn vẫn có thể duyệt và xử lý Word. "
+                    f"Mã chẩn đoán: {detail['reference']}.",
+                    diagnostic=detail,
+                ) from None
+
+        return guarded
+
+    return decorate
+
+
+def _console_office(path):
+    candidate = Path(path)
+    if sys.platform == "win32" and candidate.name.lower() == "soffice.exe":
+        console = candidate.with_suffix(".com")
+        if console.is_file():
+            return str(console)
+    return str(candidate)
 
 
 def find_office():
     configured = os.environ.get("DOCLINT_SOFFICE")
     if configured:
-        return configured if Path(configured).is_file() else None
-    for name in ("soffice", "libreoffice"):
+        return _console_office(configured) if Path(configured).is_file() else None
+    names = (
+        ("soffice.com", "soffice.exe", "libreoffice")
+        if sys.platform == "win32"
+        else ("soffice", "libreoffice")
+    )
+    for name in names:
         found = shutil.which(name)
         if found:
-            return found
-    if os.name == "nt":
+            return _console_office(found)
+    if sys.platform == "win32":
         for base in (
             os.environ.get("PROGRAMFILES"),
             os.environ.get("PROGRAMFILES(X86)"),
@@ -48,7 +88,7 @@ def find_office():
             if base:
                 candidate = Path(base) / "LibreOffice" / "program" / "soffice.exe"
                 if candidate.is_file():
-                    return str(candidate)
+                    return _console_office(candidate)
     return None
 
 
@@ -210,6 +250,46 @@ def _safe_preview_copy(data):
     return out.getvalue()
 
 
+def _office_environment(scratch):
+    env = {
+        key: os.environ[key]
+        for key in (
+            "PATH",
+            "SYSTEMROOT",
+            "WINDIR",
+            "COMSPEC",
+            "PROGRAMFILES",
+            "PROGRAMFILES(X86)",
+            "LANG",
+            "LC_ALL",
+            "FONTCONFIG_FILE",
+            "FONTCONFIG_PATH",
+        )
+        if key in os.environ
+    }
+    env.update(
+        TMPDIR=str(scratch),
+        TMP=str(scratch),
+        TEMP=str(scratch),
+        XDG_CACHE_HOME=str(scratch / "cache"),
+        SAL_USE_VCLPLUGIN="svp",
+    )
+    # Isolate Office's writable user directories while supplying the Windows
+    # variables it needs. Never inherit API credentials or HTTP proxies.
+    private_directories = {"HOME": scratch / "home"}
+    if sys.platform == "win32":
+        private_directories.update(
+            USERPROFILE=scratch / "home",
+            APPDATA=scratch / "appdata" / "Roaming",
+            LOCALAPPDATA=scratch / "appdata" / "Local",
+        )
+    for key, directory in private_directories.items():
+        directory.mkdir(parents=True, exist_ok=True)
+        env[key] = str(directory)
+    return env
+
+
+@_preview_guard("render_pdf")
 def render_pdf(data, destination, cancel=None, timeout=RENDER_TIMEOUT):
     executable = find_office()
     if not executable:
@@ -232,29 +312,7 @@ def render_pdf(data, destination, cancel=None, timeout=RENDER_TIMEOUT):
             "</oor:items>",
             encoding="utf-8",
         )
-        env = {
-            key: os.environ[key]
-            for key in (
-                "PATH",
-                "SYSTEMROOT",
-                "WINDIR",
-                "COMSPEC",
-                "PROGRAMFILES",
-                "PROGRAMFILES(X86)",
-                "LANG",
-                "LC_ALL",
-                "FONTCONFIG_FILE",
-                "FONTCONFIG_PATH",
-            )
-            if key in os.environ
-        }
-        env.update(
-            TMPDIR=str(scratch),
-            TMP=str(scratch),
-            TEMP=str(scratch),
-            XDG_CACHE_HOME=str(scratch / "cache"),
-            SAL_USE_VCLPLUGIN="svp",
-        )
+        env = _office_environment(scratch)
         args = [
             executable,
             f"-env:UserInstallation={profile.as_uri()}",
@@ -347,6 +405,7 @@ def extract_page_label(footer):
     return found
 
 
+@_preview_guard("inspect_pdf")
 def inspect_pdf(path, headings=(), blocks=(), section_bounds=None):
     pages = []
     warnings = []

@@ -589,6 +589,13 @@ select {
   color: #6a7661;
   padding: 5px 10px;
 }
+#diagnostic-tools {
+  margin: 12px 0 24px;
+}
+#diagnostic-tools .field-help {
+  color: var(--muted);
+  font-size: 12px;
+}
 .error-box {
   font-size: 12px;
   padding: 12px 14px;

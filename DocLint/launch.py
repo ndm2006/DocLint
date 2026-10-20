@@ -11,6 +11,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 import webbrowser
 import uvicorn
+from v1.diagnostics import BUILD
 
 
 def main():
@@ -29,7 +30,7 @@ def main():
         try:
             with urlopen(address + "/api/v1/capabilities", timeout=2) as response:
                 cap = json.load(response)
-            if cap.get("version") == "1.0":
+            if cap.get("version") == "1.0" and cap.get("build") == BUILD:
                 print("DocLint V1 đang chạy; mở lại cửa sổ trình duyệt.")
                 webbrowser.open(address)
                 return 0
