@@ -4,7 +4,7 @@ No DOCX returned by LibreOffice is adopted as the user's output. The original
 OpenXML engine remains authoritative; the renderer produces PDF only.
 """
 
-from contextlib import closing
+from contextlib import closing, contextmanager
 from copy import copy
 from functools import wraps
 from io import BytesIO
@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import zipfile
 import warnings
 from PIL import Image
@@ -280,13 +281,53 @@ def _office_environment(scratch):
     if sys.platform == "win32":
         private_directories.update(
             USERPROFILE=scratch / "home",
-            APPDATA=scratch / "appdata" / "Roaming",
-            LOCALAPPDATA=scratch / "appdata" / "Local",
+            APPDATA=scratch / "a",
+            LOCALAPPDATA=scratch / "l",
         )
     for key, directory in private_directories.items():
         directory.mkdir(parents=True, exist_ok=True)
         env[key] = str(directory)
     return env
+
+
+def cleanup_office_workspaces(parent):
+    """Retry only our private scratch folders, after the job stops rendering."""
+    for folder in Path(parent).glob("office-*"):
+        if folder.is_dir() and not folder.is_symlink():
+            try:
+                shutil.rmtree(folder)
+            except OSError:
+                pass  # Retained inside the private session; retry on the next sweep.
+
+
+@contextmanager
+def _office_workspace(parent):
+    try:
+        scratch = Path(tempfile.mkdtemp(prefix="office-", dir=parent))
+    except OSError as exc:
+        detail = record_failure(exc, "office_workspace_create")
+        raise PreviewError(
+            "Không tạo được thư mục tạm cho LibreOffice. "
+            f"Mã chẩn đoán: {detail['reference']}.",
+            detail,
+        ) from None
+    try:
+        yield scratch
+    finally:
+        # Windows can briefly retain Office/antivirus handles after conversion.
+        # A cleanup failure must not invalidate an already verified PDF or mask
+        # the original render error. The session janitor will retry this folder.
+        for attempt in range(3):
+            try:
+                shutil.rmtree(scratch)
+                break
+            except FileNotFoundError:
+                break
+            except OSError as exc:
+                if attempt == 2:
+                    record_failure(exc, "office_workspace_cleanup")
+                else:
+                    time.sleep(0.05)
 
 
 @_preview_guard("render_pdf")
@@ -297,13 +338,10 @@ def render_pdf(data, destination, cancel=None, timeout=RENDER_TIMEOUT):
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     safe = _safe_preview_copy(data)
-    with tempfile.TemporaryDirectory(
-        prefix="doclint-office-", dir=destination.parent
-    ) as scratch:
-        scratch = Path(scratch)
+    with _office_workspace(destination.parent) as scratch:
         input_path = scratch / "document.docx"
         input_path.write_bytes(safe)
-        profile = scratch / "profile"
+        profile = scratch / "p"
         (profile / "user").mkdir(parents=True)
         (profile / "user" / "registrymodifications.xcu").write_text(
             '<?xml version="1.0" encoding="UTF-8"?><oor:items xmlns:oor="http://openoffice.org/2001/registry">'
@@ -344,8 +382,6 @@ def render_pdf(data, destination, cancel=None, timeout=RENDER_TIMEOUT):
             raise PreviewError(
                 "Không khởi động được LibreOffice. Kiểm tra cài đặt hoặc biến DOCLINT_SOFFICE."
             ) from None
-        import time
-
         started = time.monotonic()
         try:
             while True:

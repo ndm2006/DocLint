@@ -3,6 +3,7 @@
 from copy import copy, deepcopy
 from io import BytesIO
 import hashlib
+import re
 import zipfile
 from lxml import etree
 from core.processor import _open, DocumentError
@@ -167,6 +168,8 @@ class IntegrityLedger:
         self.events = []
         self.locks = []
         self.generated = set()
+        self._paragraph_refs_ready = False
+        self._paragraph_refs = None
         self.track("word/document.xml")
         self.track("word/styles.xml")
 
@@ -270,9 +273,52 @@ class IntegrityLedger:
             )
         return removed
 
+    def _empty_metadata_safe(self, paragraph):
+        w14 = "http://schemas.microsoft.com/office/word/2010/wordml"
+        allowed = {q(n) for n in ("rsidR", "rsidRDefault", "rsidP")}
+        id_names = {f"{{{w14}}}paraId", f"{{{w14}}}textId"}
+        if any(key not in allowed | id_names for key in paragraph.attrib):
+            return False
+        identifiers = {
+            value.upper() for key, value in paragraph.attrib.items() if key in id_names
+        }
+        if not identifiers:
+            return True
+        if not self._paragraph_refs_ready:
+            self._paragraph_refs_ready = True
+            self._paragraph_refs = set()
+            for name, raw in self.original_parts.items():
+                if name == "word/document.xml" or not name.endswith(".xml"):
+                    continue
+                try:
+                    root = parse_xml(raw)
+                except (ValueError, etree.LxmlError):
+                    self._paragraph_refs = None  # Unknown references: preserve IDs.
+                    break
+                for node in root.iter():
+                    for value in [*node.attrib.values(), node.text or ""]:
+                        self._paragraph_refs.update(
+                            re.findall(
+                                r"(?i)(?<![0-9a-f])[0-9a-f]{8}(?![0-9a-f])",
+                                value.upper(),
+                            )
+                        )
+        return self._paragraph_refs is not None and not identifiers.intersection(
+            self._paragraph_refs
+        )
+
     def remove_empty(self, paragraph, block_id):
         # Only top-level, structurally empty paragraphs with ordinary properties.
-        if paragraph.getparent().tag != q("body") or paragraph.attrib:
+        if (
+            paragraph.getparent() is None
+            or paragraph.getparent().tag != q("body")
+            or not self._empty_metadata_safe(paragraph)
+        ):
+            return False
+        if paragraph.xpath(
+            ".//w:ins | .//w:del | .//w:moveFrom | .//w:moveTo | .//w:rPrChange",
+            namespaces=NS,
+        ):
             return False
         allowed_props = {
             q(n) for n in ("pStyle", "jc", "spacing", "ind", "rPr", "widowControl")

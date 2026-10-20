@@ -156,225 +156,346 @@ function isLocked(block) {
     ($("preserve-appendices").checked && block.region === "appendices")
   );
 }
-function layoutEnabled() {
-  for (const select of $("layout-review").querySelectorAll("select")) {
-    const b = state.job?.analysis?.blocks.find(
-      (b) => b.id === select.dataset.layout,
-    );
-    select.disabled =
-      state.busy || $("mode-select").value !== "layout" || (b && isLocked(b));
-  }
+function eligibleIds(group) {
+  const end =
+    state.job?.analysis?.blocks.find((b) => b.id === $("cover-end").value)
+      ?.position ?? -1;
+  return group.block_ids.filter((id) => {
+    const b = state.job.analysis.blocks.find((b) => b.id === id);
+    return b && b.position > end && !isLocked(b);
+  });
 }
-$("mode-select").addEventListener("change", layoutEnabled);
+function reviewGroups() {
+  const p = state.reviewPlan || {};
+  return [
+    ...(p.heading_groups || []),
+    ...(p.layout_groups || []),
+    ...(p.table_groups || []),
+    ...(p.caption_groups || []),
+  ];
+}
 function refreshLocks() {
   const blocks = state.job?.analysis?.blocks || [];
-  for (const b of blocks) {
-    const el = $("heading-" + b.id);
-    if (el) {
-      el.disabled = state.busy || isLocked(b);
-      el.closest(".outline-item").classList.toggle("locked", isLocked(b));
-    }
+  let questions = 0;
+  for (const select of $("review").querySelectorAll("select[data-group]")) {
+    const group = reviewGroups().find((g) => g.id === select.dataset.group);
+    const active = group && eligibleIds(group).length > 0;
+    const enabled =
+      select.dataset.kind !== "layout" || $("mode-select").value === "layout";
+    const tableEnabled =
+      select.dataset.kind !== "table" || $("normalize-tables").checked;
+    select.closest(".question-group").hidden =
+      !active || !enabled || !tableEnabled;
+    select.disabled = state.busy || !active || !enabled || !tableEnabled;
+    if (active && enabled && tableEnabled) questions++;
   }
+  for (const [card, containers] of [
+    ["heading-questions-card", ["outline-list"]],
+    ["layout-questions-card", ["layout-review"]],
+    ["object-questions-card", ["table-review", "caption-review"]],
+  ])
+    $(card).hidden = !containers.some((id) =>
+      [...$(id).children].some((row) => !row.hidden),
+    );
   $("lock-count").textContent =
     blocks.filter(isLocked).length + " khối được giữ";
-  layoutEnabled();
+  $("review-summary").textContent = questions
+    ? `${questions} nhóm chưa đủ căn cứ tự xử lý. Một lựa chọn áp dụng cho cả nhóm; mặc định giữ nguyên nếu bạn chưa chắc.`
+    : "Không có phần nào cần bạn chọn lại. Chọn mẫu trình bày, bìa hoặc mục lục nếu cần rồi hoàn thiện tài liệu.";
+  const end = $("cover-end").value;
+  $("cover-plan-note").textContent = end
+    ? $("cover-select").value === "keep"
+      ? "Giữ phần bìa đã nhận diện. Chọn một mẫu nếu muốn dàn bìa thành trang riêng."
+      : "Dàn phần thông tin bìa hiện có thành trang riêng; nội dung bắt đầu ở trang sau. Không thêm tên hoặc logo."
+    : "Chưa nhận diện thông tin bìa để dàn lại. Hệ thống giữ nguyên tài liệu.";
+  const p = state.reviewPlan;
+  if (p) {
+    const o = collectHeadingChoices();
+    const known = new Set([
+      ...blocks
+        .filter(
+          (b) =>
+            b.role === "heading" &&
+            b.certainty === "certain" &&
+            b.position > (blocks.find((b) => b.id === end)?.position ?? -1),
+        )
+        .map((b) => b.id),
+      ...Object.keys(o.headings),
+    ]);
+    const available = known.size > 0;
+    $("automatic-summary").textContent =
+      (known.size ? `${known.size} đề mục đã xác định. ` : "") +
+      "Thân bài, bảng đơn giản và ảnh trong dòng dùng quy tắc an toàn; không cần chọn lại từng phần.";
+    $("toc-select").options[1].disabled = !available;
+    if (!available) $("toc-select").value = "keep";
+    $("toc-region-note").textContent = !available
+      ? "Xác nhận một nhóm đề mục ở trên để tạo mục lục."
+      : "Mục lục bắt đầu trên trang riêng, tách bìa và nội dung. Nếu quá dài, mục lục tiếp tục sang trang kế tiếp.";
+  }
 }
 for (const id of [
   "cover-end",
   "cover-select",
   "preserve-references",
   "preserve-appendices",
+  "mode-select",
+  "normalize-tables",
 ])
   $(id).addEventListener("change", refreshLocks);
 function renderLocks() {
   const query = $("block-search").value.trim().toLocaleLowerCase("vi");
-  const all = (state.job?.analysis?.blocks || []).filter(
-    (b) =>
-      !query || (b.id + " " + b.text).toLocaleLowerCase("vi").includes(query),
+  if (!query) {
+    $("block-locks").replaceChildren();
+    $("lock-limit").textContent =
+      "Nhập từ khóa khi cần giữ nguyên một vùng riêng; không cần chọn từng đoạn.";
+    return;
+  }
+  const all = (state.job?.analysis?.blocks || []).filter((b) =>
+    (b.id + " " + b.text).toLocaleLowerCase("vi").includes(query),
   );
-  const nodes = all.slice(0, 200).map((b) => {
-    const label = document.createElement("label");
-    label.className = "check-line";
-    const check = document.createElement("input");
-    check.type = "checkbox";
-    check.checked = state.locks.has(b.id);
-    check.setAttribute("aria-label", "Khóa " + b.id);
-    check.addEventListener("change", () => {
-      if (check.checked) state.locks.add(b.id);
-      else state.locks.delete(b.id);
-      refreshLocks();
-    });
-    const text = document.createElement("span");
-    text.textContent = b.text || "Đoạn/đối tượng không có chữ";
-    const small = document.createElement("span");
-    small.className = "block-id";
-    small.textContent = b.id + " · " + (roleNames[b.role] || b.role);
-    text.append(small);
-    label.append(check, text);
-    return label;
-  });
-  $("block-locks").replaceChildren(...nodes);
+  $("block-locks").replaceChildren(
+    ...all.slice(0, 30).map((b) => {
+      const label = document.createElement("label");
+      label.className = "check-line";
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.checked = state.locks.has(b.id);
+      check.setAttribute("aria-label", "Giữ nguyên " + b.id);
+      check.addEventListener("change", () => {
+        if (check.checked) state.locks.add(b.id);
+        else state.locks.delete(b.id);
+        refreshLocks();
+      });
+      const text = document.createElement("span");
+      text.textContent = b.text || "Đối tượng không có chữ";
+      label.append(check, text);
+      return label;
+    }),
+  );
   $("lock-limit").textContent =
-    all.length > 200
-      ? `Hiển thị 200/${all.length} khối. Nhập từ khóa để tìm vùng cần khóa.`
-      : `${all.length} khối khớp tìm kiếm.`;
+    all.length > 30
+      ? `Hiển thị 30/${all.length} kết quả. Nhập cụ thể hơn để thu hẹp.`
+      : `${all.length} kết quả.`;
 }
 $("block-search").addEventListener("input", renderLocks);
-function reviewRow(block, label, control) {
+function groupControl(group, kind, choices, value) {
   const row = document.createElement("div");
-  row.className = "outline-item";
-  const description = document.createElement("div");
-  const p = document.createElement("p");
-  p.textContent = label;
-  const small = document.createElement("small");
-  small.textContent = block.id + " · " + block.reason;
-  description.append(p, small);
-  row.append(description, control);
+  row.className = "question-group";
+  const info = document.createElement("div");
+  const title = document.createElement("strong");
+  title.textContent = `${group.label} · ${group.block_ids.length} dòng`;
+  const examples = document.createElement("ul");
+  examples.className = "question-examples";
+  for (const id of group.block_ids.slice(0, 3)) {
+    const b = state.job.analysis.blocks.find((b) => b.id === id);
+    const item = document.createElement("li");
+    item.textContent = b?.text || "Đối tượng trong tài liệu";
+    examples.append(item);
+  }
+  if (group.block_ids.length > 3) {
+    const more = document.createElement("li");
+    more.textContent = `Và ${group.block_ids.length - 3} dòng cùng dạng`;
+    examples.append(more);
+  }
+  const select = document.createElement("select");
+  select.dataset.group = group.id;
+  select.dataset.kind = kind;
+  select.setAttribute("aria-label", group.label);
+  for (const [v, label] of choices) select.add(new Option(label, v));
+  if (value === "custom") {
+    const option = new Option("Giữ lựa chọn riêng đã lưu", "custom");
+    option.disabled = true;
+    select.add(option);
+  }
+  select.value = value || "keep";
+  select.addEventListener("change", refreshLocks);
+  info.append(title, examples);
+  row.append(info, select);
   return row;
+}
+function commonValue(values) {
+  return values.every((v) => v === values[0]) ? values[0] : "custom";
+}
+function fallbackPlan(a) {
+  const groups = new Map();
+  for (const b of a.blocks.filter(
+    (b) =>
+      ["heading", "emphasis"].includes(b.role) && b.certainty !== "certain",
+  )) {
+    const level = b.level || 1;
+    if (!groups.has(level))
+      groups.set(level, {
+        id: "heading-" + level,
+        label: "Các dòng có thể là đề mục",
+        level,
+        block_ids: [],
+      });
+    groups.get(level).block_ids.push(b.id);
+  }
+  return {
+    automatic_headings: {},
+    heading_groups: [...groups.values()],
+    layout_groups: [],
+    table_groups: [],
+    caption_groups: [],
+    cover_candidates: a.cover_end ? [a.cover_end] : [],
+    counts: {},
+  };
 }
 function renderReview(meta) {
   const a = meta.analysis;
   if (!a) return;
-  const key = meta.id;
-  if (state.planKey === key) {
+  if (state.planKey === meta.id) {
     refreshLocks();
     return;
   }
-  state.planKey = key;
-  state.locks = new Set(meta.options?.locked_blocks || []);
-  const s = a.summary;
+  state.planKey = meta.id;
+  state.reviewPlan = a.review_plan || fallbackPlan(a);
+  const plan = state.reviewPlan,
+    o = meta.options || {};
+  state.locks = new Set(o.locked_blocks || []);
   $("analysis-summary").replaceChildren(
     ...[
-      `${s.paragraphs} đoạn`,
-      `${s.tables} bảng`,
-      `${s.images} ảnh`,
-      `${s.equations} công thức`,
-    ].map((t) => {
-      const n = document.createElement("span");
-      n.textContent = t;
-      return n;
+      `${a.summary.paragraphs} đoạn`,
+      `${a.summary.tables} bảng`,
+      `${a.summary.images} ảnh`,
+      `${a.summary.equations} công thức`,
+    ].map((text) => {
+      const span = document.createElement("span");
+      span.textContent = text;
+      return span;
     }),
   );
-  const heads = a.blocks.filter(
-    (b) => b.type === "paragraph" && ["heading", "emphasis"].includes(b.role),
-  );
-  $("heading-count").textContent = heads.length + " đoạn để xem";
-  $("outline-list").replaceChildren(
-    ...heads.map((b) => {
-      const select = document.createElement("select");
-      select.id = "heading-" + b.id;
-      select.dataset.block = b.id;
-      select.setAttribute("aria-label", "Cấp tiêu đề cho " + b.id);
-      select.add(new Option("Giữ nguyên", ""));
-      for (let i = 1; i <= 6; i++)
-        select.add(new Option("Heading " + i, String(i)));
-      select.value = String(
-        meta.options?.heading_levels?.[b.id] ??
-          (b.certainty === "certain" ? (b.level ?? "") : ""),
-      );
-      return reviewRow(b, b.text, select);
+  $("automatic-list").replaceChildren(
+    ...[
+      "Giữ cấp của tiêu đề Word đã có; nhận các chuỗi đề mục đánh số nhất quán.",
+      "Chuẩn hóa thân bài, bảng đơn giản và ảnh trong dòng theo mẫu.",
+      "Tự gắn chú thích khi chỉ có một đối tượng liền kề phù hợp.",
+      "Giữ vùng tham khảo, phụ lục, công thức, code và cấu trúc phức tạp theo phạm vi an toàn.",
+    ].map((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      return li;
     }),
   );
-  if (!heads.length)
-    $("outline-list").textContent =
-      "Chưa nhận diện đoạn tiêu đề. Thân bài vẫn có thể được chuẩn hóa.";
+  const candidates = [
+    ...new Set([
+      ...(plan.cover_candidates || []),
+      ...(o.cover_end ? [o.cover_end] : []),
+    ]),
+  ];
   $("cover-end").replaceChildren(
-    new Option("Chưa xác định/không có bìa", ""),
-    ...a.blocks
-      .filter((b) => b.position <= 50)
-      .map(
-        (b) =>
-          new Option(
-            b.id + " · " + (b.text || roleNames[b.role]).slice(0, 70),
-            b.id,
+    new Option("Không có phần bìa", ""),
+    ...candidates.map((id) => {
+      const b = a.blocks.find((b) => b.id === id);
+      return new Option(
+        (id === a.cover_end ? "Đề xuất: " : "Kết thúc sau: ") +
+          (b?.text || "Thông tin bìa").slice(0, 70),
+        id,
+      );
+    }),
+  );
+  $("cover-end").value = o.cover_end || a.cover_end || "";
+  for (const option of $("cover-select").options)
+    if (option.value !== "keep") option.disabled = !candidates.length;
+  $("toc-select").replaceChildren(
+    new Option(a.toc_region ? "Giữ mục lục hiện tại" : "Giữ hiện tại", "keep"),
+    new Option(
+      a.toc_region ? "Thay mục lục — trang riêng" : "Tạo mục lục — trang riêng",
+      a.toc_region ? "replace" : "insert",
+    ),
+  );
+  $("outline-list").replaceChildren(
+    ...plan.heading_groups.map((g) =>
+      groupControl(
+        g,
+        "heading",
+        [
+          ["keep", "Giữ cách trình bày hiện tại"],
+          ["heading", `Dùng làm đề mục cấp ${g.level}`],
+        ],
+        commonValue(
+          g.block_ids.map((id) =>
+            o.heading_levels?.[id] ? "heading" : "keep",
           ),
+        ),
       ),
+    ),
   );
-  $("cover-end").value = meta.options?.cover_end || a.cover_end || "";
-  $("toc-select").options[1].disabled = !!a.toc_region;
-  $("toc-select").options[2].disabled = !a.toc_region;
-  $("toc-region-note").textContent = a.toc_region
-    ? `Đã nhận diện vùng ${a.toc_region.start} → ${a.toc_region.end}. Chỉ thay khi bạn chọn rõ phương án thay thế.`
-    : "Chưa nhận diện mục lục cũ. Tạo mới cần có ít nhất một Heading hoặc đề mục được duyệt.";
-  const manual = a.blocks.filter(
-    (b) =>
-      ["body", "signature"].includes(b.role) && (b.leading_layout || b.has_tab),
-  );
+  $("heading-count").textContent = plan.heading_groups.length + " nhóm";
   $("layout-review").replaceChildren(
-    ...manual.map((b) => {
-      const select = document.createElement("select");
-      select.dataset.layout = b.id;
-      select.setAttribute("aria-label", "Cách căn bố cục " + b.id);
-      for (const [value, label] of [
-        ["", "Theo quy tắc an toàn"],
-        ["keep", "Giữ nguyên"],
-        ["body", "Thụt đầu thân bài"],
-        ["center", "Căn giữa"],
-        ["right_block", "Khối bên phải"],
-      ])
-        select.add(new Option(label, value));
-      select.value = meta.options?.layout_decisions?.[b.id] || "";
-      return reviewRow(b, b.text, select);
-    }),
+    ...plan.layout_groups.map((g) =>
+      groupControl(
+        g,
+        "layout",
+        [
+          ["keep", "Giữ vị trí hiện tại"],
+          ["body", "Căn thành đoạn thường"],
+          ["center", "Căn giữa"],
+          ["right_block", "Căn khối bên phải"],
+        ],
+        commonValue(
+          g.block_ids.map((id) => o.layout_decisions?.[id] || "keep"),
+        ),
+      ),
+    ),
   );
-  if (!manual.length)
-    $("layout-review").textContent = "Không có khối căn bằng ký tự cần duyệt.";
-  const tables = a.blocks.filter((b) => b.type === "table");
   $("table-review").replaceChildren(
-    ...tables.map((b) => {
-      const label = document.createElement("label");
-      label.className = "check-line";
-      const c = document.createElement("input");
-      c.type = "checkbox";
-      c.dataset.table = b.id;
-      c.checked =
-        b.header || (meta.options?.table_headers || []).includes(b.id);
-      c.disabled = !b.simple || b.header;
-      const t = document.createElement("span");
-      t.textContent =
-        `${b.id}: ${b.rows} hàng × ${b.columns} cột. ` +
-        (b.simple
-          ? b.header
-            ? "Đã có hàng tiêu đề."
-            : "Xác nhận hàng đầu là tiêu đề để lặp khi sang trang."
-          : "Giữ bảng gộp ô/lồng nhau hoặc cấu trúc ngoài phạm vi.");
-      label.append(c, t);
-      return label;
-    }),
+    ...plan.table_groups.map((g) =>
+      groupControl(
+        g,
+        "table",
+        [
+          ["keep", "Giữ hàng đầu như hiện tại"],
+          ["header", "Dùng hàng đầu làm tiêu đề cột"],
+        ],
+        commonValue(
+          g.block_ids.map((id) =>
+            o.table_headers?.includes(id) ? "header" : "keep",
+          ),
+        ),
+      ),
+    ),
   );
-  if (!tables.length)
-    $("table-review").textContent = "Không có bảng trực tiếp cần duyệt.";
-  const captions = a.blocks.filter((b) => b.role === "caption");
   $("caption-review").replaceChildren(
-    ...captions.map((b) => {
-      const select = document.createElement("select");
-      select.dataset.caption = b.id;
-      select.setAttribute("aria-label", "Đối tượng của chú thích " + b.id);
-      select.add(new Option("Giữ, chưa liên kết", ""));
-      for (const id of b.targets || []) select.add(new Option(id, id));
-      select.value = meta.options?.caption_links?.[b.id] || b.target || "";
-      return reviewRow(b, b.text, select);
-    }),
+    ...plan.caption_groups.map((g) =>
+      groupControl(
+        g,
+        "caption",
+        [
+          ["keep", "Giữ, chưa gắn đối tượng"],
+          ["previous", "Gắn với đối tượng phía trước"],
+          ["next", "Gắn với đối tượng phía sau"],
+        ],
+        commonValue(
+          g.members.map((m) =>
+            o.caption_links?.[m.id] === m.previous
+              ? "previous"
+              : o.caption_links?.[m.id] === m.next
+                ? "next"
+                : "keep",
+          ),
+        ),
+      ),
+    ),
   );
-  const o = meta.options;
-  if (o) {
-    for (const [id, k] of [
-      ["profile-select", "profile"],
-      ["mode-select", "mode"],
-      ["cover-select", "cover"],
-      ["toc-select", "toc"],
-    ])
-      $(id).value = o[k];
-    for (const [id, k] of [
-      ["preserve-references", "preserve_references"],
-      ["preserve-appendices", "preserve_appendices"],
-      ["normalize-tables", "normalize_tables"],
-      ["normalize-images", "normalize_images"],
-      ["hide-first-page", "hide_first_page_number"],
-    ])
-      $(id).checked = o[k];
+  for (const [id, key] of [
+    ["profile-select", "profile"],
+    ["mode-select", "mode"],
+    ["cover-select", "cover"],
+    ["toc-select", "toc"],
+  ])
+    if (o[key] !== undefined) $(id).value = o[key];
+  for (const [id, key] of [
+    ["preserve-references", "preserve_references"],
+    ["preserve-appendices", "preserve_appendices"],
+    ["normalize-tables", "normalize_tables"],
+    ["normalize-images", "normalize_images"],
+    ["hide-first-page", "hide_first_page_number"],
+  ])
+    if (o[key] !== undefined) $(id).checked = o[key];
+  if (o.page_numbers !== undefined)
     $("page-numbers").checked = o.page_numbers === "arabic";
-  }
   profileChanged();
   $("mode-select").dispatchEvent(new Event("change"));
   renderLocks();
@@ -384,45 +505,98 @@ function renderReview(meta) {
     : "Chưa có bản dựng: " + (meta.original_preview.reason || "");
   renderPage("review");
 }
-$("approve-headings").addEventListener("click", () => {
-  for (const b of state.job.analysis.blocks) {
-    const select = $("heading-" + b.id);
-    if (select && !select.disabled && b.role === "heading" && b.level)
-      select.value = String(b.level);
-  }
-});
-function collectOptions() {
-  const headings = {};
-  for (const select of $("outline-list").querySelectorAll("select"))
-    if (select.value && !select.disabled) {
-      const b = state.job.analysis.blocks.find(
-        (b) => b.id === select.dataset.block,
-      );
-      if (b.certainty !== "certain" || Number(select.value) !== b.level)
-        headings[select.dataset.block] = Number(select.value);
+function collectHeadingChoices() {
+  const plan = state.reviewPlan || {},
+    options = state.job?.options || {};
+  const headings = {
+    ...(plan.automatic_headings || {}),
+    ...(options.heading_levels || {}),
+  };
+  const preserved = new Set(options.preserved_candidates || []);
+  for (const select of $("outline-list").querySelectorAll(
+    "select[data-group]",
+  )) {
+    const group = plan.heading_groups.find(
+      (g) => g.id === select.dataset.group,
+    );
+    for (const id of eligibleIds(group)) {
+      if (select.value === "heading") {
+        headings[id] = group.level;
+        preserved.delete(id);
+      } else if (select.value === "keep") {
+        delete headings[id];
+        preserved.add(id);
+      }
     }
-  const decisions = {};
-  for (const select of $("layout-review").querySelectorAll("select"))
-    if (select.value && !select.disabled)
-      decisions[select.dataset.layout] = select.value;
-  const links = {};
-  for (const select of $("caption-review").querySelectorAll("select"))
-    if (select.value) links[select.dataset.caption] = select.value;
+  }
+  const end =
+    state.job?.analysis?.blocks.find((b) => b.id === $("cover-end").value)
+      ?.position ?? -1;
+  for (const id of Object.keys(headings)) {
+    const b = state.job?.analysis?.blocks.find((b) => b.id === id);
+    if (!b || isLocked(b) || b.position <= end) delete headings[id];
+  }
   return {
-    layout_decisions: decisions,
+    headings,
+    preserved: [...preserved].filter(
+      (id) =>
+        !headings[id] &&
+        state.job.analysis.blocks.some(
+          (b) => b.id === id && b.position > end && !isLocked(b),
+        ),
+    ),
+  };
+}
+function collectOptions() {
+  const p = state.reviewPlan,
+    saved = state.job.options || {};
+  const { headings, preserved } = collectHeadingChoices();
+  const decisions = { ...(saved.layout_decisions || {}) },
+    links = { ...(saved.caption_links || {}) },
+    tables = new Set(saved.table_headers || []);
+  for (const select of $("layout-review").querySelectorAll(
+    "select[data-group]",
+  )) {
+    if (select.disabled || select.value === "custom") continue;
+    const group = p.layout_groups.find((g) => g.id === select.dataset.group);
+    for (const id of eligibleIds(group)) decisions[id] = select.value;
+  }
+  for (const select of $("table-review").querySelectorAll(
+    "select[data-group]",
+  )) {
+    if (select.disabled || select.value === "custom") continue;
+    const group = p.table_groups.find((g) => g.id === select.dataset.group);
+    for (const id of eligibleIds(group)) {
+      if (select.value === "header") tables.add(id);
+      else tables.delete(id);
+    }
+  }
+  for (const select of $("caption-review").querySelectorAll(
+    "select[data-group]",
+  )) {
+    if (select.disabled || select.value === "custom") continue;
+    const group = p.caption_groups.find((g) => g.id === select.dataset.group);
+    for (const member of group.members.filter((m) =>
+      eligibleIds(group).includes(m.id),
+    )) {
+      if (select.value === "keep") delete links[member.id];
+      else links[member.id] = member[select.value];
+    }
+  }
+  return {
     profile: $("profile-select").value,
     mode: $("mode-select").value,
     heading_levels: headings,
+    preserved_candidates: preserved,
+    layout_decisions: decisions,
+    caption_links: links,
+    table_headers: [...tables],
     locked_blocks: [...state.locks],
     preserve_cover: $("cover-select").value === "keep",
-    preserve_references: $("preserve-references").checked,
-    preserve_appendices: $("preserve-appendices").checked,
     cover: $("cover-select").value,
     cover_end: $("cover-end").value || null,
-    table_headers: [
-      ...$("table-review").querySelectorAll("input:checked:not(:disabled)"),
-    ].map((c) => c.dataset.table),
-    caption_links: links,
+    preserve_references: $("preserve-references").checked,
+    preserve_appendices: $("preserve-appendices").checked,
     toc: $("toc-select").value,
     page_numbers: $("page-numbers").checked ? "arabic" : "keep",
     hide_first_page_number: $("hide-first-page").checked,
@@ -430,6 +604,7 @@ function collectOptions() {
     normalize_images: $("normalize-images").checked,
   };
 }
+
 function expiry() {
   if (!state.job) return;
   const seconds = Math.max(
@@ -798,6 +973,7 @@ $("diagnostic-button").addEventListener("click", () =>
   download("diagnostic", $("diagnostic-button")),
 );
 function reset() {
+  state.reviewPlan = null;
   $("diagnostic-tools").hidden = true;
   clearTimeout(state.poll);
   clearInterval(state.timer);

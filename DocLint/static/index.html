@@ -183,8 +183,11 @@
               </p>
             </li>
             <li>
-              <strong>Bạn duyệt trước khi sửa</strong>
-              <p>Không đoán rồi đổi tên chương, số liệu hoặc câu chữ.</p>
+              <strong>Chỉ hỏi khi chưa chắc chắn</strong>
+              <p>
+                Gộp các trường hợp tương tự; không yêu cầu bạn chọn lại từng
+                đoạn.
+              </p>
             </li>
             <li>
               <strong>Xem được từng trang</strong>
@@ -217,61 +220,90 @@
       <section id="review" class="review" aria-labelledby="review-title" hidden>
         <div class="section-label">
           <span class="step-number">02</span>
-          <h2 id="review-title">Phương án trình bày của bạn</h2>
+          <h2 id="review-title">Chỉ cần xác nhận những chỗ chưa rõ</h2>
           <span class="version-pill">BẢN GỐC LUÔN ĐƯỢC GIỮ RIÊNG</span>
         </div>
         <div id="analysis-summary" class="analysis-summary"></div>
-        <p class="muted">
-          Đề xuất theo quy tắc có thể cần điều chỉnh. Chọn những mục bạn đồng ý;
-          các đoạn còn phân vân sẽ được giữ nguyên.
-        </p>
+        <div id="automatic-summary" class="notice"></div>
+        <p id="review-summary" class="muted"></p>
         <div class="plan-grid">
           <div class="plan-main">
-            <details open class="plan-card">
-              <summary>Cây tiêu đề <span id="heading-count"></span></summary>
+            <details id="heading-questions-card" open class="plan-card">
+              <summary>
+                Đề mục còn phân vân <span id="heading-count"></span>
+              </summary>
               <p class="small muted">
-                Đề mục đã có Heading được giữ cấp sẵn có. Đề xuất mới chỉ áp
-                dụng khi bạn chọn cấp. Không tự đổi tên hoặc đánh lại số đề mục.
+                Các dòng cùng dạng được gộp thành một nhóm. Chọn một lần cho cả
+                nhóm; đề mục đã chắc chắn không cần chọn lại.
               </p>
-              <button id="approve-headings" class="button subtle" type="button">
-                Duyệt các đề mục có số theo cấp đề xuất
-              </button>
               <div id="outline-list" class="outline-list"></div>
             </details>
-            <details class="plan-card">
-              <summary>Căn bố cục bằng Space/Tab</summary>
-              <p class="small muted">
-                Bật chế độ làm sạch ký tự để duyệt. Chỉ thay phần đầu đoạn;
-                không xóa Tab giữa nội dung. Với trường hợp khó, chọn rõ ý đồ
-                thay vì để hệ thống đoán.
-              </p>
+            <details id="layout-questions-card" open class="plan-card">
+              <summary>Cách căn còn chưa rõ</summary>
               <div id="layout-review"></div>
             </details>
-            <details class="plan-card">
-              <summary>Bảng và chú thích cần duyệt</summary>
+            <details id="object-questions-card" open class="plan-card">
+              <summary>Bảng và chú thích cần xác nhận</summary>
               <div id="table-review"></div>
               <div id="caption-review"></div>
             </details>
             <details class="plan-card">
-              <summary>
-                Khóa vùng tài liệu <span id="lock-count"></span>
-              </summary>
+              <summary>Hệ thống tự xử lý những gì?</summary>
+              <ul id="automatic-list" class="feature-list"></ul>
               <p class="small muted">
-                Vùng khóa giữ nguyên thuộc tính và nội dung. Lề của section dùng
-                chung cũng được giữ nếu có vùng khóa.
+                Giữ tiêu đề Word đã có; chỉ tự nhận đề mục đánh số khi có nhiều
+                dấu hiệu nhất quán. Mọi thay đổi đều có nhật ký và được áp từ
+                bản gốc.
+              </p>
+            </details>
+            <details id="advanced-options" class="plan-card">
+              <summary>Tùy chọn nâng cao</summary>
+              <label for="mode-select" class="field-label"
+                >Làm sạch ký tự căn bố cục</label
+              >
+              <select id="mode-select">
+                <option value="layout">Làm sạch có kiểm soát</option>
+                <option value="strict">Giữ nguyên toàn bộ ký tự</option>
+              </select>
+              <p id="mode-description" class="small muted"></p>
+              <label class="check-line"
+                ><input id="normalize-tables" type="checkbox" checked /> Chuẩn
+                hóa bảng đơn giản</label
+              >
+              <label class="check-line"
+                ><input id="normalize-images" type="checkbox" checked /> Thu ảnh
+                trong dòng vừa vùng in</label
+              >
+              <label class="check-line"
+                ><input id="page-numbers" type="checkbox" checked /> Chuẩn hóa
+                số trang</label
+              >
+              <label class="check-line"
+                ><input id="hide-first-page" type="checkbox" checked /> Ẩn số
+                trang đầu</label
+              >
+              <label for="cover-end" class="field-label spaced"
+                >Điều chỉnh điểm kết thúc bìa</label
+              ><select id="cover-end"></select>
+              <p class="small muted">
+                Chỉ đưa ra các ranh giới gần phần đầu tài liệu; không gộp đoạn
+                mở đầu vào bìa.
               </p>
               <label class="check-line"
                 ><input id="preserve-references" type="checkbox" checked /> Giữ
-                nguyên phần tài liệu tham khảo</label
-              ><label class="check-line"
+                phần tài liệu tham khảo</label
+              >
+              <label class="check-line"
                 ><input id="preserve-appendices" type="checkbox" checked /> Giữ
-                nguyên phần phụ lục</label
-              ><label for="block-search" class="field-label"
-                >Tìm đoạn/bảng để khóa riêng</label
-              ><input
+                phần phụ lục</label
+              >
+              <label for="block-search" class="field-label spaced"
+                >Tìm vùng cần giữ nguyên <span id="lock-count"></span
+              ></label>
+              <input
                 id="block-search"
                 type="search"
-                placeholder="Nhập nội dung hoặc mã khối…"
+                placeholder="Nhập một phần nội dung để tìm…"
               />
               <div id="block-locks" class="block-locks"></div>
               <p id="lock-limit" class="small muted"></p>
@@ -310,77 +342,51 @@
               <label for="profile-select" class="field-label"
                 >MẪU TRÌNH BÀY</label
               ><select id="profile-select" disabled></select>
-              <p id="profile-description" class="small muted"></p>
-              <dl class="profile-specs">
-                <div>
-                  <dt>Phông</dt>
-                  <dd id="spec-font"></dd>
-                </div>
-                <div>
-                  <dt>Cỡ thân bài</dt>
-                  <dd id="spec-size"></dd>
-                </div>
-                <div>
-                  <dt>Giãn dòng</dt>
-                  <dd id="spec-spacing"></dd>
-                </div>
-              </dl>
-              <p id="spec-margins" class="small muted"></p>
+              <details>
+                <summary class="small">Thông số mẫu</summary>
+                <p id="profile-description" class="small muted"></p>
+                <dl class="profile-specs">
+                  <div>
+                    <dt>Phông</dt>
+                    <dd id="spec-font"></dd>
+                  </div>
+                  <div>
+                    <dt>Cỡ thân bài</dt>
+                    <dd id="spec-size"></dd>
+                  </div>
+                  <div>
+                    <dt>Giãn dòng</dt>
+                    <dd id="spec-spacing"></dd>
+                  </div>
+                </dl>
+                <p id="spec-margins" class="small muted"></p>
+              </details>
             </div>
             <div class="plan-card">
-              <label for="mode-select" class="field-label">PHẠM VI SỬA</label
-              ><select id="mode-select">
-                <option value="strict">Giữ nguyên ký tự căn bố cục</option>
-                <option value="layout">
-                  Cho phép làm sạch ký tự căn bố cục
-                </option>
+              <label for="cover-select" class="field-label">BÌA</label>
+              <select id="cover-select">
+                <option value="keep">Giữ cách trình bày hiện tại</option>
+                <option value="academic">Bìa học thuật — trang riêng</option>
+                <option value="minimal">Bìa tối giản — trang riêng</option>
               </select>
-              <p id="mode-description" class="small muted">
-                Chỉ sửa thuộc tính. Không xóa Space, Tab hoặc đoạn trống.
-              </p>
-              <label class="check-line"
-                ><input id="normalize-tables" type="checkbox" checked /> Chuẩn
-                hóa bảng đơn giản</label
-              ><label class="check-line"
-                ><input id="normalize-images" type="checkbox" checked /> Căn và
-                thu ảnh trong dòng vừa vùng in</label
-              >
-            </div>
-            <div class="plan-card">
-              <label for="cover-select" class="field-label">BÌA</label
-              ><select id="cover-select">
-                <option value="keep">Giữ nguyên bìa đã xác định</option>
-                <option value="academic">Dàn bìa học thuật</option>
-                <option value="minimal">Dàn bìa tối giản</option></select
-              ><label for="cover-end" class="field-label spaced"
-                >Xác nhận bìa kết thúc tại</label
-              ><select id="cover-end"></select>
-              <p class="small muted">
-                Chỉ dùng thông tin hiện có; không thêm tên người, ngày tháng
-                hoặc logo.
+              <p id="cover-plan-note" class="small muted">
+                Dùng thông tin sẵn có để dàn bìa, không thêm tên hoặc logo.
               </p>
             </div>
             <div class="plan-card">
               <label for="toc-select" class="field-label">MỤC LỤC</label
               ><select id="toc-select">
-                <option value="keep">Giữ mục lục hiện tại</option>
-                <option value="insert">Tạo mục lục tự động</option>
-                <option value="replace">Thay mục lục đã nhận diện</option>
+                <option value="keep">Giữ hiện tại</option>
+                <option value="insert">Tạo mục lục — trang riêng</option>
               </select>
               <p id="toc-region-note" class="small muted"></p>
-              <label class="check-line"
-                ><input id="page-numbers" type="checkbox" /> Chuẩn hóa số trang
-                Ả Rập</label
-              ><label class="check-line"
-                ><input id="hide-first-page" type="checkbox" checked /> Ẩn trang
-                đầu; trang thứ hai bắt đầu số 1</label
-              >
             </div>
             <button id="format-button" class="button primary" type="button">
-              Dàn trang theo phương án này →
+              Hoàn thiện tài liệu →
             </button>
             <p class="small muted">
-              Áp dụng từ bản gốc mỗi lần; bạn có thể quay lại đổi phương án.
+              Những mục giữ nguyên sẽ không bị ép đổi. Bạn có thể xem kết quả và
+              quay lại đổi phương án.
             </p>
           </aside>
         </div>

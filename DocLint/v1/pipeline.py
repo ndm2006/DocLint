@@ -12,7 +12,11 @@ from v1.renderer import PreviewError, render_pdf, inspect_pdf, font_warnings
 def _heading_list(editor):
     heads = {}
     for block in editor.analysis.blocks:
-        if block["role"] == "heading" and block["certainty"] == "certain":
+        if (
+            block["role"] == "heading"
+            and block["certainty"] == "certain"
+            and block["position"] > editor.cover_position
+        ):
             heads[block["id"]] = block
     heads.update({b["id"]: b for b in editor.heading_blocks})
     return [

@@ -20,6 +20,7 @@ def screenshot(page, name):
 
 
 def main():
+    expect.set_options(timeout=120000)
     original = SOURCE.read_bytes()
     with sync_playwright() as p, TemporaryDirectory() as downloads:
         path = os.environ.get("DOCLINT_BROWSER_PATH")
@@ -58,22 +59,23 @@ def main():
             expect(page.locator("#review")).to_be_visible()
             meta = page.request.get(URL + job["urls"]["status"]).json()
             assert meta["original_preview"]["available"], meta["original_preview"]
-            page.locator("#approve-headings").click()
-            page.select_option("#mode-select", "layout")
+            assert not page.locator("#advanced-options").get_attribute("open")
+            expect(page.locator("#block-locks input")).to_have_count(0)
+            plan = meta["analysis"]["review_plan"]
+            expect(page.locator("#outline-list select")).to_have_count(
+                len(plan["heading_groups"])
+            )
+            for select in page.locator("#outline-list select:not(:disabled)").all():
+                select.select_option("heading")
             if meta["analysis"]["cover_end"]:
                 page.select_option("#cover-select", "academic")
-            if any(b["role"] == "heading" for b in meta["analysis"]["blocks"]):
+            if not page.locator("#toc-select option").nth(1).is_disabled():
                 page.select_option(
                     "#toc-select",
                     "replace" if meta["analysis"]["toc_region"] else "insert",
                 )
-            page.locator("#page-numbers").check()
-            table_section = page.locator("details").filter(
-                has=page.locator("#table-review")
-            )
-            table_section.locator("summary").click()
-            for checkbox in page.locator("#table-review input:not(:disabled)").all():
-                checkbox.check()
+            for select in page.locator("#table-review select:not(:disabled)").all():
+                select.select_option("header")
             screenshot(page, "review.png")
             page.locator("#format-button").click()
             expect(page.locator("#results")).to_be_visible()
@@ -100,6 +102,8 @@ def main():
             page.locator("#revise-button").click()
             expect(page.locator("#review")).to_be_visible()
             page.select_option("#profile-select", "report")
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            screenshot(page, "mobile-review.png")
             page.locator("#format-button").click()
             expect(page.locator("#results")).to_be_visible()
             second = page.request.get(URL + job["urls"]["status"]).json()
@@ -117,6 +121,10 @@ def main():
             print(
                 "PASS: desktop/mobile, review, both templates, real previews, DOCX/report download, reload, reformat from original, delete; no JS errors."
             )
+        except Exception:
+            if errors:
+                print("Browser script errors:", errors)
+            raise
         finally:
             browser.close()
 

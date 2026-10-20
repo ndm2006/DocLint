@@ -391,9 +391,27 @@ class Analysis:
         # "everything before first heading" in an arbitrary document.
         first = self.blocks[:35]
         evidence = any(
-            re.search(r"dai hoc|truong|bao cao|tieu luan|do an", folded(b["text"]))
+            re.match(
+                r"^(?:dai hoc|truong|bo giao duc|bao cao|tieu luan|do an|luan van)\b",
+                folded(b["text"]),
+            )
+            and (
+                b.get("bold")
+                or b["role"] in {"heading", "emphasis"}
+                or b["text"].isupper()
+                or b.get("alignment") == "center"
+                or len(b["text"].split()) <= 12
+                and not b["text"].endswith((".", "!", "?"))
+            )
             for b in first[:12]
         )
+        first_text = next((b for b in first if b["text"]), None)
+        if first_text and (
+            CHAPTER.match(folded(first_text["text"]))
+            or first_text["role"] == "heading"
+            and re.match(r"^\d", first_text["text"])
+        ):
+            evidence = False
         if evidence:
             for block in first:
                 node = self.elements[block["id"]]
@@ -414,6 +432,75 @@ class Analysis:
                 ):
                     self.cover_end = block["id"]
                     break
+        # Compact reports can place the first chapter immediately after a title,
+        # without the three preliminary blocks assumed by the legacy detector.
+        if (
+            evidence
+            and self.cover_end is None
+            and first_text
+            and re.match(
+                r"^(bao cao|tieu luan|do an|luan van)\b", folded(first_text["text"])
+            )
+            and (
+                first_text.get("bold") or first_text["role"] in {"heading", "emphasis"}
+            )
+        ):
+            for block in first:
+                if block["position"] <= first_text["position"]:
+                    continue
+                if block["role"] == "heading" and not re.search(
+                    r"bao cao|de tai|sinh vien|giang vien|ma (?:so|lop)|nhom",
+                    folded(block["text"]),
+                ):
+                    previous = [b for b in first if b["position"] < block["position"]]
+                    self.cover_end = previous[-1]["id"] if previous else None
+                    break
+        self.cover_explicit = False
+        if self.cover_end:
+            end_position = next(
+                b["position"] for b in self.blocks if b["id"] == self.cover_end
+            )
+            self.cover_explicit = any(
+                self.elements[b["id"]].tag == q("p")
+                and (
+                    self.elements[b["id"]].find("w:pPr/w:sectPr", NS) is not None
+                    or self.elements[b["id"]].xpath(
+                        './w:r/w:br[@w:type="page"]', namespaces=NS
+                    )
+                )
+                for b in self.blocks
+                if b["position"] <= end_position
+            )
+            # An inferred cover must stop before ordinary introductory prose.
+            # Blank Enter padding before a chapter is not evidence of a cover.
+            if not self.cover_explicit:
+                previous = None
+                for b in self.blocks:
+                    if b["position"] > end_position:
+                        break
+                    text = folded(b["text"])
+                    metadata = bool(
+                        re.search(
+                            r"truong|dai hoc|khoa|bao cao|tieu luan|do an|luan van|de tai|giang vien|sinh vien|ma (?:so|lop)|nhom|ho ten|nguoi (?:huong dan|thuc hien)|ha noi|ho chi minh|thang|nam\s+20",
+                            text,
+                        )
+                    )
+                    metadata = metadata or bool(
+                        b["text"]
+                        and len(b["text"].split()) <= 8
+                        and not b["text"].endswith((".", "!", "?"))
+                    )
+                    if (
+                        b["role"] == "body"
+                        and b["text"]
+                        and not metadata
+                        and b["position"] > 0
+                    ):
+                        self.cover_end = previous
+                        break
+                    if b["text"] or b["role"] in {"image", "table"}:
+                        previous = b["id"]
+                self.cover_end = previous
         # Associate captions only with adjacent objects, allowing empty paragraphs.
         nonempty = [b for b in self.blocks if b["role"] != "empty"]
         for index, block in enumerate(nonempty):
@@ -494,12 +581,15 @@ class Analysis:
                 return
 
     def public(self):
+        from v1.review import review_plan
+
         counts = Counter(b["role"] for b in self.blocks)
         return {
             "blocks": self.blocks,
             "counts": dict(counts),
             "sections": self.sections,
             "cover_end": self.cover_end,
+            "review_plan": review_plan(self),
             "toc_region": self.toc_region,
             "summary": {
                 "paragraphs": len(self.package.document.xpath(".//w:p", namespaces=NS)),
@@ -515,7 +605,7 @@ class Analysis:
             },
             "limitations": [
                 "V1 ưu tiên báo cáo học thuật một cột.",
-                "Suy luận theo quy tắc; các đề xuất tiêu đề cần bạn duyệt.",
+                "Suy luận theo quy tắc; chỉ các nhóm đề mục chưa chắc chắn cần bạn duyệt.",
                 "Vùng khóa giữ nguyên; section dùng chung có thể được giữ để bảo vệ bố cục.",
             ],
         }

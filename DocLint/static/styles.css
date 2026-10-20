@@ -1328,6 +1328,39 @@ input[type="search"] {
   padding: 13px 0;
   border-bottom: 1px solid #edf0e7;
 }
+.question-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
+  align-items: center;
+  gap: 18px;
+  padding: 20px 0;
+  border-bottom: 1px solid #e1e5dc;
+}
+#automatic-summary {
+  background: #edf3e8;
+  border-color: #dce7d6;
+  color: #365143;
+}
+.question-group:last-child {
+  border-bottom: 0;
+}
+.question-group strong {
+  font-size: 13px;
+}
+.question-examples {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .question-group {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+}
 .outline-item p {
   margin: 0;
   font-size: 12px;

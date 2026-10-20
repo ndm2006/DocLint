@@ -7,6 +7,7 @@ class FormatOptions(BaseModel):
     profile: Literal["hust", "report"] = "hust"
     mode: Literal["strict", "layout"] = "strict"
     heading_levels: dict[str, int] = Field(default_factory=dict, max_length=1000)
+    preserved_candidates: list[str] = Field(default_factory=list, max_length=1000)
     locked_blocks: list[str] = Field(default_factory=list, max_length=5000)
     preserve_cover: bool = True
     preserve_references: bool = True

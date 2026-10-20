@@ -2,7 +2,7 @@
 
 **Hoàn thiện báo cáo Word bằng bộ quy tắc, không dùng API AI trả phí.**
 
-Tải DOCX → duyệt cây tiêu đề, vùng khóa và ý đồ căn bố cục → dàn trang theo vai trò → đối chiếu nội dung → xem từng trang trước/sau → tải Word, PDF và nhật ký. Phạm vi V1 là báo cáo học thuật một cột, không phải mọi kiểu tài liệu Word.
+Tải DOCX → xác nhận các nhóm còn chưa chắc chắn → dàn trang theo vai trò → đối chiếu nội dung → xem từng trang trước/sau → tải Word, PDF và nhật ký. Phạm vi V1 là báo cáo học thuật một cột, không phải mọi kiểu tài liệu Word.
 
 ## Bắt đầu trên Windows
 
@@ -18,7 +18,7 @@ Nếu chưa cài LibreOffice, web vẫn hoạt động và báo kết quả **ch
 
 Trên Windows, nếu có `soffice.com` cạnh `soffice.exe`, DocLint ưu tiên bộ gọi console để chờ quá trình chuyển PDF kết thúc. Bộ dựng có thư mục cấu hình và AppData tạm riêng. Tệp khởi động cũng tự bổ sung `pip` bằng `ensurepip` nếu môi trường ảo còn thiếu.
 
-Nếu web báo lỗi ngay sau khi tải lên: bản mới giữ màn hình duyệt khi cấu trúc Word đã đọc được nhưng bộ xem trước gặp lỗi. Khi xuất hiện nút **Tải thông tin lỗi để hỗ trợ**, tải JSON và gửi cùng mô tả bước lỗi. JSON chứa mã tham chiếu, giai đoạn, loại lỗi, vị trí code và phiên bản môi trường; không chứa nội dung, tên tài liệu, đường dẫn máy cá nhân hoặc thông báo ngoại lệ thô. Chỉ tải được trong thời hạn phiên. Lỗi cấu trúc thực sự vẫn chặn xuất Word. Khi dùng bản code mới, hãy dừng Terminal cũ trước khi khởi động lại; launcher sẽ không tự mở một bản build cũ đang chiếm cổng.
+Nếu web báo lỗi ngay sau khi tải lên: bản mới giữ màn hình duyệt khi cấu trúc Word đã đọc được nhưng bộ xem trước gặp lỗi. Khi xuất hiện nút **Tải thông tin lỗi để hỗ trợ**, tải JSON và gửi cùng mô tả bước lỗi. JSON chứa mã tham chiếu, giai đoạn, loại lỗi, mã hệ điều hành nếu có, vị trí code và phiên bản môi trường; không chứa nội dung, tên tài liệu, đường dẫn máy cá nhân hoặc thông báo ngoại lệ thô. Chỉ tải được trong thời hạn phiên. Lỗi cấu trúc thực sự vẫn chặn xuất Word. Khi dùng bản code mới, hãy dừng Terminal cũ trước khi khởi động lại; launcher sẽ không tự mở một bản build cũ đang chiếm cổng.
 
 Chạy thủ công trong PowerShell, tại thư mục có README:
 
@@ -36,12 +36,12 @@ Trong giao diện có **Tải báo cáo mẫu có lỗi bố cục**. Đây là 
 
 Sau khi tải lên:
 
-- Duyệt các đề mục được đề xuất; chọn Heading đúng cấp. Đề xuất chưa được duyệt giữ nguyên.
+- Hệ thống giữ Heading sẵn có và tự nhận các chuỗi đề mục có số khi đủ dấu hiệu nhất quán. Chỉ các nhóm còn phân vân mới hiện câu hỏi; chọn một lần cho cả nhóm, mặc định giữ nguyên.
 - Chọn HUST hoặc báo cáo phổ thông. Mẫu HUST xuất phát từ cấu hình của dự án, chưa phải chứng nhận đúng mọi quy định trường/khoa.
-- Giữ bìa hoặc xác nhận điểm kết thúc bìa để áp mẫu học thuật/tối giản.
-- Chọn giữ ký tự căn bố cục, hoặc cho phép làm sạch. Có thể duyệt riêng khối căn giữa, thân bài hoặc chữ ký bên phải.
-- Xác nhận hàng đầu của bảng là tiêu đề nếu cần lặp khi sang trang.
-- Chọn tạo mục lục; nếu có mục lục cũ được nhận diện, phải chọn rõ thay thế. Chọn số trang nếu muốn chuẩn hóa.
+- Giữ bìa hoặc chọn mẫu học thuật/tối giản để dàn phần thông tin bìa hiện có thành trang riêng. Bộ nhận diện không gộp đoạn mở đầu thông thường vào bìa chỉ vì nó đứng trước chương đầu.
+- Căn bằng Space/Tab chỉ được hỏi theo nhóm khi ý đồ chưa rõ. Chế độ giữ nguyên ký tự, phạm vi bảng/ảnh, số trang và tìm vùng khóa nằm trong **Tùy chọn nâng cao**; không liệt kê tất cả đoạn để bạn chọn.
+- Chỉ hỏi xác nhận hàng đầu cho nhóm bảng có dấu hiệu giống tiêu đề cột. Bảng đã có hàng tiêu đề hoặc chú thích chỉ có một đối tượng phù hợp không cần chọn lại.
+- Mục lục chỉ có hai lựa chọn phù hợp với tài liệu: giữ hiện tại hoặc tạo/thay thế. Mục lục bắt đầu trên trang riêng và nội dung bắt đầu ở trang sau mục lục; mục lục dài được phép tiếp tục sang nhiều trang.
 - Xem trước–sau, đọc cảnh báo, tải bản Word riêng và mở Word xem lần cuối.
 
 Mỗi lần đổi phương án đều xử lý từ **bản gốc**, tránh tích lũy những thay đổi không mong muốn.
@@ -51,16 +51,16 @@ Mỗi lần đổi phương án đều xử lý từ **bản gốc**, tránh tí
 | Nhóm | Hành vi V1 |
 | --- | --- |
 | Phân tích | Mã khối, style kế thừa, vai trò, section, vùng bìa, mục lục, tham khảo/phụ lục; nhận định có giải thích |
-| Tiêu đề | Duyệt cấp 1–6, tạo style thật/outline, giữ tiêu đề với đoạn sau; không đổi tên hoặc đánh lại số |
+| Tiêu đề | Tự nhận chuỗi đề mục rõ ràng; nhóm chưa chắc chỉ hỏi giữ nguyên hoặc dùng cấp đề xuất; tạo Heading/outline thật, không đổi tên hoặc đánh lại số |
 | Thân bài | Phông/cỡ theo vai trò, khoảng cách, giãn dòng, căn lề; giữ nhấn mạnh, chỉ số và phông ký hiệu |
 | Space/Tab | Chế độ giữ nguyên mặc định; làm sạch đầu đoạn có điều kiện hoặc theo lựa chọn cụ thể; không cắt ký tự giữa nội dung |
-| Enter | Chỉ thay chuỗi đoạn thật sự rỗng ngay trước chương đã duyệt; bảo vệ bookmark, ngắt section, đối tượng và đoạn bắt buộc |
+| Enter | Làm sạch chuỗi rỗng trước chương và khoảng đệm bìa/mục lục theo phạm vi; bảo vệ bookmark, ngắt section, đối tượng, revision và tham chiếu paragraph ID |
 | Danh sách | Giữ số/ký hiệu đang có, chuẩn hóa hình thức; giữ style cung cấp numbering, chưa đổi danh sách gõ tay sang số tự động |
 | Bảng đơn giản | Độ rộng theo vùng in, phân bổ cột, đệm ô, kiểu chữ/viền, hàng tiêu đề có xác nhận; không đổi ô/số liệu |
 | Ảnh | Thu ảnh trong dòng theo cả chiều rộng/cao, giữ tỷ lệ hiển thị và dữ liệu ảnh; cảnh báo ảnh có thể bị kéo méo |
 | Chú thích | Liên kết đối tượng liền kề duy nhất hoặc được duyệt; giữ ảnh/chú thích cùng nhau bằng thuộc tính Word |
-| Bìa | Mẫu học thuật/tối giản, chỉ thông tin sẵn có; cần xác nhận vùng, không bịa tên/ngày/logo |
-| Mục lục | Trường TOC thật có cache số trang, thay mục lục cũ chỉ khi được duyệt; đối chiếu tối đa 3 bản dựng |
+| Bìa | Mẫu học thuật/tối giản từ thông tin sẵn có, tách thành trang riêng; nhận diện ranh giới trước phần mở đầu, không bịa tên/ngày/logo |
+| Mục lục | Trường TOC thật trong phạm vi thân bài, bắt đầu trang riêng và tách phần nội dung; thay mục lục cũ chỉ khi được duyệt, đối chiếu tối đa 3 bản dựng |
 | Số trang | Footer riêng, bảo toàn phần gốc; tùy chọn trang đầu ẩn, trang thứ hai bắt đầu số 1; section phức tạp được giữ |
 | Xem trước | PDF cục bộ, ảnh từng trang, điều hướng và đánh dấu các trang định vị được thay đổi/cảnh báo |
 | Toàn vẹn | Đối chiếu trước và sau đóng gói; vùng khóa kiểm tra chính xác; thành phần không sửa giữ byte-for-byte |
@@ -87,9 +87,13 @@ LibreOffice chỉ tạo PDF; DOCX do LibreOffice ghi lại không được dùng
 - `partial`: nội dung đã đối chiếu nhưng bản dựng/mục lục/số trang chưa hoàn tất; tải Word được và cảnh báo rõ phần chưa kiểm tra.
 - `failed`: không hoàn tất phân tích; chưa có kết quả để tải.
 
+Mục lục dùng bookmark phạm vi thân bài, tránh đưa tiêu đề bìa vào khi cập nhật field. Trong chế độ layout, khoảng đệm rỗng ở ranh giới bìa/mục lục được làm sạch có kiểm soát. Paragraph ID và dấu phiên chỉnh sửa của Word không ngăn việc xóa đoạn thật sự rỗng nếu không có tham chiếu ngoài; bookmark, revision và mã được tham chiếu vẫn được bảo vệ.
+
 Máy chủ phải có phông phù hợp. Linux có thể dùng Liberation Serif thay Times New Roman hoặc Carlito thay Calibri; khi phát hiện thay phông, giao diện thông báo. LibreOffice và Word có thể ngắt dòng/trang khác nhau. Bản xem trước không phải cam kết giống Word từng điểm ảnh.
 
 Kiểm tra theo trang có phạm vi: trang ít chữ, tiêu đề gần cuối trang, chữ/ảnh ngoài khổ/vùng in định vị được. Liên kết trang thay đổi chỉ dựa trên khớp văn bản đủ rõ; không suy đoán mọi vị trí bảng/ảnh. 100% thuộc tính khớp mẫu không được dùng làm điểm đạt chuẩn toàn tài liệu.
+
+Nếu Windows chưa dọn được thư mục tạm sau chuyển PDF, lỗi dọn dẹp không làm mất một PDF đã kiểm tra thành công. Thư mục vẫn nằm trong phiên riêng và được thử dọn lại khi job không còn chạy. Lỗi tạo thư mục tạm có mã chẩn đoán riêng; không được báo thành đã dựng PDF.
 
 ## Chạy trên Linux/cloud
 
@@ -121,7 +125,7 @@ Cài LibreOffice và phông bằng trình quản lý gói của máy chạy. Mô
 | GET | `/api/v1/jobs/{id}/pages/{original\|result}/{n}.png` | Ảnh trang theo nhu cầu |
 | DELETE | `/api/v1/jobs/{id}` | Hủy và xóa; 204 khi xong, 202 nếu đang dừng |
 
-Các trường chọn định dạng được kiểm tra bởi `v1/options.py`: `profile`, `mode`, `heading_levels`, `locked_blocks`, `preserve_cover`, `preserve_references`, `preserve_appendices`, `cover`, `cover_end`, `table_headers`, `caption_links`, `layout_decisions`, `toc`, `page_numbers`, `hide_first_page_number`, `normalize_tables`, `normalize_images`. Trường không biết bị từ chối. UUID trong URL là quyền truy cập phiên; không chia sẻ URL tài liệu riêng tư.
+Các trường chọn định dạng được kiểm tra bởi `v1/options.py`: `profile`, `mode`, `heading_levels`, `preserved_candidates`, `locked_blocks`, `preserve_cover`, `preserve_references`, `preserve_appendices`, `cover`, `cover_end`, `table_headers`, `caption_links`, `layout_decisions`, `toc`, `page_numbers`, `hide_first_page_number`, `normalize_tables`, `normalize_images`. Trường không biết bị từ chối. UUID trong URL là quyền truy cập phiên; không chia sẻ URL tài liệu riêng tư.
 
 Endpoint `/api/v1/lint` và `/api/v1/sessions/...` cũ được giữ để tương thích luồng định dạng cơ bản trước V1. Giao diện V1 dùng Jobs API để phân tích/duyệt/xem trước, không dùng endpoint cũ.
 

@@ -15,7 +15,7 @@ from v1.analysis import Analysis
 from v1.diagnostics import record_failure
 from v1.package import Package
 from v1.pipeline import format_document
-from v1.renderer import PreviewError, render_pdf, inspect_pdf
+from v1.renderer import PreviewError, render_pdf, inspect_pdf, cleanup_office_workspaces
 
 
 class JobStore:
@@ -199,6 +199,12 @@ class JobManager:
                     meta = self.store.read(folder.name, expired=True)
                     if meta and meta["expires"] <= time.time():
                         await self.delete(folder.name)
+                    elif meta and self.active != folder.name:
+                        await asyncio.to_thread(cleanup_office_workspaces, folder)
+                    elif meta is None:
+                        with suppress(FileNotFoundError):
+                            if folder.stat().st_mtime + self.store.ttl <= time.time():
+                                self.store.delete(folder.name)
 
     def submit(self, job_id, action, options=None):
         if self.queue.full():

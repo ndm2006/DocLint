@@ -7,7 +7,7 @@ import platform
 import sys
 from uuid import uuid4
 
-BUILD = "v1-windows-preview-fix"
+BUILD = "v1-guided-review-frontmatter"
 BASE = Path(__file__).resolve().parents[1]
 logger = logging.getLogger("doclint")
 
@@ -50,11 +50,18 @@ def record_failure(exc, phase):
             "packages": packages,
         },
     }
+    if isinstance(exc, OSError):
+        detail["os_error"] = {
+            key: value
+            for key in ("errno", "winerror")
+            if isinstance((value := getattr(exc, key, None)), int)
+        }
     logger.error(
-        "DocLint failure reference=%s phase=%s exception=%s frames=%s",
+        "DocLint failure reference=%s phase=%s exception=%s frames=%s os_error=%s",
         reference,
         phase,
         detail["exception"],
         detail["frames"],
+        detail.get("os_error", {}),
     )
     return detail

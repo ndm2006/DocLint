@@ -55,6 +55,16 @@ class Editor:
 
     def _validate(self):
         blocks = {b["id"]: b for b in self.analysis.blocks}
+        for block_id in self.options.preserved_candidates:
+            if (
+                block_id not in blocks
+                or blocks[block_id]["role"] not in {"heading", "emphasis"}
+                or blocks[block_id]["certainty"] == "certain"
+                or block_id in self.options.heading_levels
+            ):
+                raise DocumentError(
+                    "Lựa chọn giữ nguyên đề mục chưa chắc chắn không hợp lệ."
+                )
         for block_id in self.options.locked_blocks:
             if block_id not in blocks:
                 raise DocumentError("Vùng khóa không có trong tài liệu.")
@@ -339,6 +349,8 @@ class Editor:
                 self.heading_blocks.append({**block, "level": level})
                 continue
             if block["role"] in {"heading", "emphasis"}:
+                if block_id in self.options.preserved_candidates:
+                    continue
                 self.warn(
                     "heading_review",
                     "Đề mục chưa được duyệt",
@@ -457,6 +469,10 @@ class Editor:
             self.paragraph(node, block, role)
         if self.options.mode == "layout":
             self.empty_paragraphs()
+        if self.options.cover != "keep":
+            from v1.fields import separate_cover
+
+            separate_cover(self)
         if self.options.toc != "keep":
             from v1.fields import create_toc
 
@@ -760,6 +776,7 @@ class Editor:
             if removed:
                 self.log("whitespace", block["id"], "cover_leading_layout", removed)
         self.paragraph(p, block, "cover", override=spec)
+        self.prop(ensure(p, "pPr"), "outlineLvl", {"val": 9})
 
     def empty_paragraphs(self):
         # Only collapse empty runs directly before a confirmed chapter heading.

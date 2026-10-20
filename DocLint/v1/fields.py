@@ -27,6 +27,120 @@ def field(kind, cached="1"):
     return node
 
 
+def _ends_page(node):
+    if node is None:
+        return False
+    section = node.find("w:pPr/w:sectPr", NS)
+    if section is not None:
+        kind = section.find(q("type"))
+        if kind is None or kind.get(q("val")) != "continuous":
+            return True
+    last = None
+    for child in node.iter():
+        if (
+            child.tag in {q("br"), q("drawing"), q("pict")}
+            or child.tag == q("t")
+            and child.text
+        ):
+            last = child
+    return last is not None and last.tag == q("br") and last.get(q("type")) == "page"
+
+
+def _flow_before(node):
+    previous = node.getprevious()
+    while previous is not None and previous.tag not in {q("p"), q("tbl"), q("sdt")}:
+        previous = previous.getprevious()
+    return previous
+
+
+def _separate_before(editor, node, rule):
+    if node is None or _ends_page(_flow_before(node)):
+        return
+    block_id = next(
+        (bid for bid, element in editor.analysis.elements.items() if element is node),
+        None,
+    )
+    if node.tag == q("p"):
+        existing = editor.analysis.resolver.property(node, "w:pPr/w:pageBreakBefore")
+        if existing is not None and existing.get(q("val"), "1") not in {
+            "0",
+            "false",
+            "off",
+        }:
+            return
+        if block_id not in editor.locked:
+            editor.prop(ensure(node, "pPr"), "pageBreakBefore", {"val": 1})
+            editor.log(rule, block_id, "separate_page")
+            return
+    # A generated separator leaves locked paragraphs and tables unchanged.
+    marker = etree.Element(q("p"))
+    props = ensure(marker, "pPr")
+    attrs(props, "pageBreakBefore", {"val": 1})
+    attrs(props, "keepNext", {"val": 1})
+    attrs(props, "spacing", {"before": 0, "after": 0, "line": 20, "lineRule": "exact"})
+    parent = node.getparent()
+    editor.ledger.append_generated(parent, marker, rule, list(parent).index(node))
+    editor.log(rule, block_id, "separate_page_preserving_lock")
+
+
+def _trim_boundary_padding(editor, start):
+    body = editor.analysis.body
+    if editor.options.mode != "layout":
+        return
+    for node in list(body)[start:]:
+        block_id = next(
+            (
+                bid
+                for bid, element in editor.analysis.elements.items()
+                if element is node
+            ),
+            None,
+        )
+        if (
+            node.tag != q("p")
+            or text_of(node).strip(" ")
+            or block_id in editor.locked
+            or block_id is None
+        ):
+            break
+        removed = editor.ledger.trim_leading(node, block_id, permit_tabs=True)
+        if removed:
+            editor.log("whitespace", block_id, "frontmatter_padding", removed)
+        if not editor.ledger.remove_empty(node, block_id):
+            break
+        editor.log("empty_paragraphs", block_id, "frontmatter_padding")
+
+
+def separate_cover(editor):
+    body = editor.analysis.body
+    if editor.options.mode == "layout":
+        for block in editor.analysis.blocks:
+            if block["position"] > editor.cover_position:
+                break
+            node = editor.analysis.elements[block["id"]]
+            if (
+                block["id"] not in editor.locked
+                and node.tag == q("p")
+                and not text_of(node)
+                and editor.ledger.remove_empty(node, block["id"])
+            ):
+                editor.log("empty_paragraphs", block["id"], "cover_padding")
+    covered = [
+        editor.analysis.elements[b["id"]]
+        for b in editor.analysis.blocks
+        if b["position"] <= editor.cover_position
+        and editor.analysis.elements[b["id"]].getparent() is body
+    ]
+    if not covered:
+        raise DocumentError("Phần bìa không có nội dung để trình bày.")
+    start = list(body).index(covered[-1]) + 1
+    _trim_boundary_padding(editor, start)
+    following = next(
+        (n for n in list(body)[start:] if n.tag in {q("p"), q("tbl"), q("sdt")}), None
+    )
+    _separate_before(editor, following, "cover")
+
+
 def create_toc(editor):
     analysis, ledger = editor.analysis, editor.ledger
     headings = {b["id"]: b for b in editor.heading_blocks}
@@ -54,11 +168,34 @@ def create_toc(editor):
         index = list(body).index(analysis.toc_nodes[0])
         ledger.replace_toc(analysis.toc_nodes)
     else:
-        first = analysis.elements[headings[0]["id"]]
-        index = list(body).index(first)
+        index = 0
         if editor.cover_end:
-            cover_last = analysis.elements[editor.cover_end]
+            cover_last = next(
+                analysis.elements[b["id"]]
+                for b in reversed(analysis.blocks)
+                if b["position"] <= editor.cover_position
+                and analysis.elements[b["id"]].getparent() is body
+            )
             index = list(body).index(cover_last) + 1
+    _trim_boundary_padding(editor, index)
+    previous = next(
+        (
+            n
+            for n in reversed(list(body)[:index])
+            if n.tag in {q("p"), q("tbl"), q("sdt")}
+        ),
+        None,
+    )
+    scope_number = 1
+    names = set(
+        package_name
+        for package_name in editor.package.document.xpath(
+            ".//w:bookmarkStart/@w:name", namespaces=NS
+        )
+    )
+    while f"DocLintBody{scope_number}" in names:
+        scope_number += 1
+    scope_name = f"DocLintBody{scope_number}"
     sdt = etree.Element(q("sdt"))
     sp = etree.SubElement(sdt, q("sdtPr"))
     etree.SubElement(sp, q("tag"), {q("val"): "DocLintTOC"})
@@ -71,13 +208,15 @@ def create_toc(editor):
     # TOC title must not become an entry in its own TOC.
     attrs(props, "outlineLvl", {"val": 9})
     attrs(props, "keepNext", {"val": 1})
+    if not _ends_page(previous):
+        attrs(props, "pageBreakBefore", {"val": 1})
     title.append(run_text("MỤC LỤC"))
     start = etree.SubElement(content, q("p"))
     run = etree.SubElement(start, q("r"))
     etree.SubElement(run, q("fldChar"), {q("fldCharType"): "begin", q("dirty"): "true"})
     instruction = etree.SubElement(etree.SubElement(start, q("r")), q("instrText"))
     instruction.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-    instruction.text = ' TOC \\o "1-6" \\h \\z \\u '
+    instruction.text = f' TOC \\b "{scope_name}" \\o "1-6" \\h \\z \\u '
     etree.SubElement(
         etree.SubElement(start, q("r")), q("fldChar"), {q("fldCharType"): "separate"}
     )
@@ -122,10 +261,43 @@ def create_toc(editor):
     )
     ledger.append_generated(body, sdt, "toc", index)
     editor.generated_toc = sdt
-    # Begin body after the TOC without changing heading content.
-    first = analysis.elements[headings[0]["id"]]
-    if headings[0]["id"] not in editor.locked:
-        editor.prop(ensure(first, "pPr"), "pageBreakBefore", {"val": 1})
+    # Start *all* body content after the TOC, including introduction paragraphs
+    # before the first heading. Locked content uses a generated separator.
+    following = next(
+        (n for n in list(body)[index + 1 :] if n.tag in {q("p"), q("tbl"), q("sdt")}),
+        None,
+    )
+    _separate_before(editor, following, "toc")
+    bookmark_id = str(
+        max(
+            [
+                int(v)
+                for v in editor.package.document.xpath(
+                    ".//w:bookmarkStart/@w:id", namespaces=NS
+                )
+                if v.isdigit()
+            ]
+            + [0]
+        )
+        + 1
+    )
+    ledger.append_generated(
+        body,
+        etree.Element(
+            q("bookmarkStart"), {q("id"): bookmark_id, q("name"): scope_name}
+        ),
+        "toc_scope",
+        list(body).index(sdt) + 1,
+    )
+    end_at = next(
+        (i for i, child in enumerate(body) if child.tag == q("sectPr")), len(body)
+    )
+    ledger.append_generated(
+        body,
+        etree.Element(q("bookmarkEnd"), {q("id"): bookmark_id}),
+        "toc_scope",
+        end_at,
+    )
     editor.log(
         "toc",
         None,
