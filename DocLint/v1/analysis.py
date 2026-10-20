@@ -144,10 +144,7 @@ class Analysis:
                         "protected",
                         "Chứa trường tự động, công thức, revision hoặc đối tượng cần bảo vệ.",
                     )
-                elif re.search(r"code|source|preformatted|verbatim", style_name) or any(
-                    (v or "").lower() in {"consolas", "courier new", "monospace"}
-                    for v in element.xpath(".//w:rFonts/@w:ascii", namespaces=NS)
-                ):
+                elif self._is_code(element, style_name, runs):
                     role, reason = (
                         "code",
                         "Kiểu mã nguồn hoặc phông đơn cách; giữ nguyên khoảng trắng.",
@@ -261,6 +258,34 @@ class Analysis:
                 guess_header = bool(texts) and all(
                     on(r.find("w:rPr/w:b", NS)) for r in texts
                 )
+                try:
+                    format_safe = (
+                        bool(rows)
+                        and 0 < columns <= 10
+                        and not nested
+                        and not element.xpath(
+                            PROTECTED + " | .//w:drawing", namespaces=NS
+                        )
+                    )
+                    for row in rows:
+                        spans = [
+                            int(cell.find("w:tcPr/w:gridSpan", NS).get(q("val")))
+                            if cell.find("w:tcPr/w:gridSpan", NS) is not None
+                            else 1
+                            for cell in row.findall(q("tc"))
+                        ]
+                        if (
+                            not all(1 <= span <= columns for span in spans)
+                            or sum(spans) != columns
+                            or row.xpath(
+                                "./w:trPr/w:gridBefore | ./w:trPr/w:gridAfter",
+                                namespaces=NS,
+                            )
+                        ):
+                            format_safe = False
+                            break
+                except (TypeError, ValueError):
+                    format_safe = False
                 item = {
                     "id": block_id,
                     "type": "table",
@@ -274,9 +299,10 @@ class Analysis:
                     and not merged
                     and not nested,
                     "header": header,
+                    "format_safe": format_safe,
                     "suggest_header": guess_header and not header,
                     "certainty": "certain",
-                    "protected": merged or nested,
+                    "protected": nested or merged and not format_safe,
                     "reason": "Bảng đơn giản."
                     if not merged and not nested
                     else "Bảng gộp ô/lồng nhau; bảo vệ cấu trúc.",
@@ -326,6 +352,19 @@ class Analysis:
                         certainty="suggested",
                         reason="Đoạn nổi bật về cỡ chữ/chữ hoa; cần bạn xác nhận vai trò.",
                     )
+        nonempty = [b for b in self.blocks if b["text"]]
+        for current, following in zip(nonempty, nonempty[1:]):
+            if (
+                current["role"] in {"body", "emphasis"}
+                and len(current["text"]) < 180
+                and (current["text"].endswith(":") or current.get("bold"))
+                and following["role"] in {"list", "manual_list"}
+            ):
+                current.update(
+                    role="lead_in",
+                    certainty="certain",
+                    reason="Dòng dẫn cho danh sách kế tiếp; giữ cùng ý đầu.",
+                )
         # Scope each block to the section that ends at the following sectPr.
         section_nodes = []
         for position, element in enumerate(direct):
@@ -385,6 +424,12 @@ class Analysis:
             ):
                 region = None
             block["region"] = region
+            if (
+                block["type"] == "paragraph"
+                and (REF_HEADING.match(txt) or APP_HEADING.match(txt))
+                and not block.get("protected")
+            ):
+                block.update(role="heading", level=1, certainty="certain")
         self._toc()
         self.cover_end = None
         # A cover proposal needs evidence and an explicit boundary, never just
@@ -420,7 +465,12 @@ class Analysis:
                     or plain(block["text"]).upper() == "MỤC LỤC"
                     or bool(self.toc_region and block["id"] == self.toc_region["start"])
                 )
-                if boundary and block["position"] > 2:
+                if boundary and (
+                    block["position"] > 2
+                    or self.toc_region
+                    and block["id"] == self.toc_region["start"]
+                    and block["position"] > 0
+                ):
                     previous = [
                         b for b in self.blocks if b["position"] < block["position"]
                     ]
@@ -524,9 +574,46 @@ class Analysis:
             block["target"] = targets[0]["id"] if len(targets) == 1 else None
             block["certainty"] = "certain" if len(targets) == 1 else "suggested"
 
+    def _is_code(self, element, style_name, runs):
+        if re.search(
+            r"(?:^|\s)(?:code|source|preformatted|verbatim)(?:\s|$)", style_name
+        ):
+            return True
+        # Inline identifiers in prose often use Consolas. One such run must not
+        # turn a whole paragraph or numbered requirement into protected code.
+        total = sum(len(text_of(r)) for r in runs)
+        mono = sum(
+            len(text_of(r))
+            for r in runs
+            if any(
+                (v or "").lower() in {"consolas", "courier new", "monospace"}
+                for v in r.xpath(
+                    "./w:rPr/w:rFonts/@w:ascii | ./w:rPr/w:rFonts/@w:hAnsi",
+                    namespaces=NS,
+                )
+            )
+        )
+        text = text_of(element)
+        syntax = re.search(
+            r"(?:^|\n)\s*(?:if |for |while |def |class |return\b|import |from |const |let |function |SELECT |<[/!?]?\w+[^>]*>|[{}])",
+            text,
+        )
+        return bool(total and mono / total >= 0.8 and syntax)
+
     def _toc(self):
         for block in self.blocks:
             node = self.elements[block["id"]]
+            if node.tag == q("sdt") and (
+                node.xpath(
+                    './w:sdtPr/w:tag[@w:val="DocLintObjectList" or @w:val="DocLintGlossary"]',
+                    namespaces=NS,
+                )
+                or any(
+                    re.search(r"\\c\s", value or "")
+                    for value in node.xpath(".//w:instrText/text()", namespaces=NS)
+                )
+            ):
+                continue
             if node.tag == q("sdt") and (
                 node.xpath(
                     './w:sdtPr/w:docPartObj/w:docPartGallery[contains(@w:val,"Table of Contents")]',
@@ -556,11 +643,15 @@ class Analysis:
             remaining = self.blocks[index + 1 :]
             for offset, following in enumerate(remaining):
                 text = following["text"]
-                is_entry = following["role"] == "toc" or bool(
-                    re.search(
-                        r"(?:\.{2,}|\t|\s{2,})\s*\d+\s*$",
-                        text_of(self.elements[following["id"]]),
+                is_entry = (
+                    following["role"] == "toc"
+                    or bool(
+                        re.search(
+                            r"(?:\.{2,}|\t|\s{2,})\s*\d+\s*$",
+                            text_of(self.elements[following["id"]]),
+                        )
                     )
+                    or bool(following.get("has_tab") and re.search(r"\d+\s*$", text))
                 )
                 repeated = bool(text) and any(
                     plain(b["text"]) == plain(text) for b in remaining[offset + 1 :]

@@ -271,9 +271,10 @@
                 hóa bảng đơn giản</label
               >
               <label class="check-line"
-                ><input id="normalize-images" type="checkbox" checked /> Thu ảnh
+                ><input id="normalize-images" type="checkbox" checked /> Căn ảnh
                 trong dòng vừa vùng in</label
               >
+              <label class="check-line"><input id="enlarge-images" type="checkbox" checked /> Phóng ảnh lớn đang hiển thị quá nhỏ, khi đủ độ phân giải</label>
               <label class="check-line"
                 ><input id="page-numbers" type="checkbox" checked /> Chuẩn hóa
                 số trang</label
@@ -282,6 +283,17 @@
                 ><input id="hide-first-page" type="checkbox" checked /> Ẩn số
                 trang đầu</label
               >
+              <label for="numbering-style" class="field-label spaced">Cách đánh số trang</label>
+              <select id="numbering-style">
+                <option value="academic">Học thuật: phần đầu i, ii… · thân bài từ 1</option>
+                <option value="arabic">Liên tục: trang sau bìa từ 1</option>
+              </select>
+              <p class="small muted">Hệ thống tự tách bìa, phần đầu, thân bài và phụ lục. Tài liệu có bố cục đặc biệt được giữ và báo rõ nếu chưa áp dụng được.</p>
+              <label class="check-line"><input id="caption-fields" type="checkbox" checked /> Tự động hóa số chú thích và liên kết tham chiếu rõ ràng</label>
+              <label class="check-line"><input id="object-lists" type="checkbox" checked /> Tạo danh mục hình, bảng và viết tắt từ thông tin có sẵn</label>
+              <label class="check-line"><input id="convert-manual-lists" type="checkbox" /> Chuyển danh sách đánh số gõ tay liên tiếp sang danh sách Word</label>
+              <label id="signature-option" class="check-line" hidden><input id="signature-end" type="checkbox" /> Đưa khối chữ ký rõ ràng về cuối thân bài</label>
+              <p class="small muted">Giữ nhãn số hiện có. Không thêm tên hình/bảng, định nghĩa viết tắt hoặc tự đánh lại chuỗi số chưa nhất quán.</p>
               <label for="cover-end" class="field-label spaced"
                 >Điều chỉnh điểm kết thúc bìa</label
               ><select id="cover-end"></select>
@@ -290,13 +302,14 @@
                 mở đầu vào bìa.
               </p>
               <label class="check-line"
-                ><input id="preserve-references" type="checkbox" checked /> Giữ
-                phần tài liệu tham khảo</label
+                ><input id="preserve-references" type="checkbox" /> Giữ nguyên cả
+                định dạng phần tài liệu tham khảo</label
               >
               <label class="check-line"
-                ><input id="preserve-appendices" type="checkbox" checked /> Giữ
-                phần phụ lục</label
+                ><input id="preserve-appendices" type="checkbox" /> Giữ nguyên cả
+                định dạng phần phụ lục</label
               >
+              <p class="small muted">Nội dung tham khảo và phụ lục luôn được giữ. Mặc định chỉ chuẩn hóa định dạng; bật hai mục trên nếu cần giữ cả cách trình bày cũ. Vùng khóa thủ công luôn được ưu tiên.</p>
               <label for="block-search" class="field-label spaced"
                 >Tìm vùng cần giữ nguyên <span id="lock-count"></span
               ></label>

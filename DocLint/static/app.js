@@ -203,6 +203,9 @@ function refreshLocks() {
     ? `${questions} nhóm chưa đủ căn cứ tự xử lý. Một lựa chọn áp dụng cho cả nhóm; mặc định giữ nguyên nếu bạn chưa chắc.`
     : "Không có phần nào cần bạn chọn lại. Chọn mẫu trình bày, bìa hoặc mục lục nếu cần rồi hoàn thiện tài liệu.";
   const end = $("cover-end").value;
+  const coverPosition = blocks.find((b) => b.id === end)?.position ?? -1;
+  const signatures = blocks.filter((b) => b.role === "signature" && b.position > coverPosition && !b.region && !isLocked(b));
+  $("signature-option").hidden = signatures.length !== 1 || !blocks.some((b) => b.position > signatures[0].position && b.role === "body" && !b.region);
   $("cover-plan-note").textContent = end
     ? $("cover-select").value === "keep"
       ? "Giữ phần bìa đã nhận diện. Chọn một mẫu nếu muốn dàn bìa thành trang riêng."
@@ -371,7 +374,8 @@ function renderReview(meta) {
       "Giữ cấp của tiêu đề Word đã có; nhận các chuỗi đề mục đánh số nhất quán.",
       "Chuẩn hóa thân bài, bảng đơn giản và ảnh trong dòng theo mẫu.",
       "Tự gắn chú thích khi chỉ có một đối tượng liền kề phù hợp.",
-      "Giữ vùng tham khảo, phụ lục, công thức, code và cấu trúc phức tạp theo phạm vi an toàn.",
+      "Đồng bộ định dạng phần tham khảo/phụ lục; giữ nội dung, mã nguồn, công thức và vùng khóa. Code rõ ràng có phông đơn cách và nền nhẹ.",
+      "Giữ mục lục trên trang riêng; số trang học thuật tách phần đầu và thân bài khi cấu trúc cho phép.",
     ].map((text) => {
       const li = document.createElement("li");
       li.textContent = text;
@@ -411,7 +415,7 @@ function renderReview(meta) {
         g,
         "heading",
         [
-          ["keep", "Giữ cách trình bày hiện tại"],
+          ["keep", "Giữ làm đoạn/danh sách thường"],
           ["heading", `Dùng làm đề mục cấp ${g.level}`],
         ],
         commonValue(
@@ -486,16 +490,25 @@ function renderReview(meta) {
     ["toc-select", "toc"],
   ])
     if (o[key] !== undefined) $(id).value = o[key];
+  if (o.cover === undefined && candidates.length) $("cover-select").value = "academic";
+  if (o.toc === undefined) $("toc-select").value = a.toc_region ? "replace" : "insert";
   for (const [id, key] of [
     ["preserve-references", "preserve_references"],
     ["preserve-appendices", "preserve_appendices"],
     ["normalize-tables", "normalize_tables"],
     ["normalize-images", "normalize_images"],
+    ["enlarge-images", "enlarge_images"],
+    ["caption-fields", "caption_fields"],
+    ["object-lists", "object_lists"],
+    ["convert-manual-lists", "convert_manual_lists"],
     ["hide-first-page", "hide_first_page_number"],
   ])
     if (o[key] !== undefined) $(id).checked = o[key];
-  if (o.page_numbers !== undefined)
-    $("page-numbers").checked = o.page_numbers === "arabic";
+  if (o.page_numbers !== undefined) {
+    $("page-numbers").checked = o.page_numbers !== "keep";
+    if (o.page_numbers !== "keep") $("numbering-style").value = o.page_numbers;
+  }
+  if (o.signature_position !== undefined) $("signature-end").checked = o.signature_position === "end_of_body";
   profileChanged();
   $("mode-select").dispatchEvent(new Event("change"));
   renderLocks();
@@ -598,10 +611,15 @@ function collectOptions() {
     preserve_references: $("preserve-references").checked,
     preserve_appendices: $("preserve-appendices").checked,
     toc: $("toc-select").value,
-    page_numbers: $("page-numbers").checked ? "arabic" : "keep",
+    page_numbers: $("page-numbers").checked ? $("numbering-style").value : "keep",
     hide_first_page_number: $("hide-first-page").checked,
     normalize_tables: $("normalize-tables").checked,
     normalize_images: $("normalize-images").checked,
+    enlarge_images: $("enlarge-images").checked,
+    caption_fields: $("caption-fields").checked,
+    object_lists: $("object-lists").checked,
+    convert_manual_lists: $("convert-manual-lists").checked,
+    signature_position: !$("signature-option").hidden && $("signature-end").checked ? "end_of_body" : "keep",
   };
 }
 

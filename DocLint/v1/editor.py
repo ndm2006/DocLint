@@ -81,7 +81,9 @@ class Editor:
             if (
                 block_id not in blocks
                 or blocks[block_id]["type"] != "table"
-                or not blocks[block_id]["simple"]
+                or not (
+                    blocks[block_id]["simple"] or blocks[block_id].get("format_safe")
+                )
             ):
                 raise DocumentError(
                     "Chỉ có thể xác nhận hàng tiêu đề cho bảng đơn giản."
@@ -178,9 +180,18 @@ class Editor:
         changed = False
         for run in p.xpath(".//w:r[w:t]", namespaces=NS):
             props = run.find(q("rPr"))
-            if run.find("w:rPr/w:rStyle", NS) is not None:
-                continue
             fonts = run.find("w:rPr/w:rFonts", NS)
+            if fonts is None:
+                style = run.find("w:rPr/w:rStyle", NS)
+                if style is not None:
+                    fonts = next(
+                        (
+                            s.find("w:rPr/w:rFonts", NS)
+                            for s in self.analysis.resolver.chain(style.get(q("val")))
+                            if s.find("w:rPr/w:rFonts", NS) is not None
+                        ),
+                        None,
+                    )
             if fonts is not None and any(
                 v.lower() in SYMBOL_FONTS for v in fonts.attrib.values()
             ):
@@ -213,9 +224,13 @@ class Editor:
                     {"val": spec["color"]},
                     ("themeColor", "themeTint", "themeShade"),
                 )
+            if spec.get("italic"):
+                changed |= self.prop(props, "i", {"val": 1})
         return changed
 
-    def paragraph(self, p, block, role="body", level=0, override=None):
+    def paragraph(
+        self, p, block, role="body", level=0, override=None, preserve_indent=False
+    ):
         if p.xpath(PROTECTED, namespaces=NS):
             return False
         spec = self.design.spec(role, level)
@@ -223,6 +238,17 @@ class Editor:
         changed = self._fonts(
             p, spec, role in {"heading", "cover"} and spec.get("bold", False)
         )
+        if role == "cover":
+            for run in p.xpath(".//w:r[w:t]", namespaces=NS):
+                changed |= self.prop(
+                    ensure(run, "rPr"), "b", {"val": int(spec["bold"])}
+                )
+                changed |= self.prop(
+                    ensure(run, "rPr"),
+                    "color",
+                    {"val": spec["color"]},
+                    ("themeColor", "themeTint", "themeShade"),
+                )
         props = ensure(p, "pPr")
         if role != "list":  # A list's original style may supply its numbering.
             changed |= self.prop(
@@ -246,10 +272,14 @@ class Editor:
         changed |= self.prop(props, "snapToGrid", {"val": 0})
         # Retain quotation/signature indents. Numbered list definitions retain
         # their original horizontal geometry; manual lists get a hanging indent.
-        if role != "list" and (
-            role != "body"
-            or props.find(q("ind")) is None
-            or self.options.mode == "layout"
+        if (
+            not preserve_indent
+            and role != "list"
+            and (
+                role != "body"
+                or props.find(q("ind")) is None
+                or self.options.mode == "layout"
+            )
         ):
             ind = {"left": spec["left"], "right": spec["right"]}
             ind["hanging" if spec["hanging"] else "firstLine"] = (
@@ -272,6 +302,14 @@ class Editor:
             )
         if role == "heading":
             changed |= self.prop(props, "outlineLvl", {"val": level - 1})
+        if role == "code":
+            changed |= self.prop(props, "shd", {"val": "clear", "fill": "F3F5F4"})
+            border = ensure(props, "pBdr")
+            changed |= self.prop(
+                border,
+                "left",
+                {"val": "single", "sz": 12, "space": 8, "color": "CCD6D0"},
+            )
         if changed:
             category = {
                 "heading": "headings",
@@ -287,8 +325,18 @@ class Editor:
 
     def run(self):
         blocked_sections = {
-            b.get("section") for b in self.analysis.blocks if b["id"] in self.locked
+            b.get("section")
+            for b in self.analysis.blocks
+            if b["id"] in self.options.locked_blocks
         }
+        blocked_sections.update(
+            index
+            for index, (_, section) in enumerate(self.analysis.section_nodes)
+            if any(
+                self.analysis.elements[bid] in section.iterancestors()
+                for bid in self.locked
+            )
+        )
         for index, (_, section) in enumerate(self.analysis.section_nodes):
             if self.analysis.sections[index]["complex"] or index in blocked_sections:
                 self.warn(
@@ -329,6 +377,9 @@ class Editor:
             ):
                 self.cover(node, block)
                 continue
+            if block["role"] == "code" and self.options.style_code:
+                self.paragraph(node, block, "code")
+                continue
             if block["role"] in {"protected", "code", "toc", "empty"}:
                 continue
             if block_id in self.options.heading_levels or (
@@ -346,10 +397,26 @@ class Editor:
                     )
                 last_heading = level
                 self.paragraph(node, block, "heading", level)
+                if level == 1 and (
+                    block.get("region")
+                    or any(h["level"] == 1 for h in self.heading_blocks)
+                    and re.match(
+                        r"^(chuong|chapter|phan|part)\s", folded(block["text"])
+                    )
+                ):
+                    from v1.fields import _separate_before
+
+                    _separate_before(self, node, "headings")
                 self.heading_blocks.append({**block, "level": level})
                 continue
             if block["role"] in {"heading", "emphasis"}:
                 if block_id in self.options.preserved_candidates:
+                    role = (
+                        "manual_list"
+                        if re.match(r"^\d+[.)]\s", block["text"])
+                        else "body"
+                    )
+                    self.paragraph(node, block, role, preserve_indent=role == "body")
                     continue
                 self.warn(
                     "heading_review",
@@ -363,6 +430,12 @@ class Editor:
                     self.image(node, block)
                 continue
             if block["role"] == "caption":
+                if self.options.mode == "layout" and not block["has_tab"]:
+                    removed = self.ledger.trim_leading(node, block_id)
+                    if removed:
+                        self.log(
+                            "whitespace", block_id, "caption_leading_spaces", removed
+                        )
                 target_id = self.options.caption_links.get(
                     block_id, block.get("target")
                 )
@@ -418,6 +491,13 @@ class Editor:
                 self.paragraph(node, block, "body", override=override)
                 continue
             if decision == "keep":
+                self.paragraph(
+                    node,
+                    block,
+                    "body",
+                    override={"alignment": block["alignment"] or "left"},
+                    preserve_indent=True,
+                )
                 continue
             if block["role"] == "signature" or (
                 block["alignment"] in {"center", "right", "end"}
@@ -448,10 +528,14 @@ class Editor:
                 if block.get("region") == "references"
                 else (
                     block["role"]
-                    if block["role"] in {"quote", "reference", "list", "manual_list"}
+                    if block["role"]
+                    in {"quote", "reference", "list", "manual_list", "lead_in"}
                     else "body"
                 )
             )
+            if block.get("region"):
+                self.paragraph(node, block, role, preserve_indent=True)
+                continue
             if block["leading_layout"] or block["has_tab"]:
                 leading_count = len(text_of(node)) - len(text_of(node).lstrip(" "))
                 ambiguous_short = leading_count >= 6 and len(block["text"]) < 100
@@ -462,6 +546,13 @@ class Editor:
                         "Đoạn dùng khoảng trắng/Tab được giữ nguyên để tránh đoán sai. Chỉ tự xử lý khoảng trắng đầu thân bài trong chế độ chuẩn hóa.",
                         block_id,
                     )
+                    self.paragraph(
+                        node,
+                        block,
+                        role,
+                        override={"alignment": block["alignment"] or "left"},
+                        preserve_indent=True,
+                    )
                     continue
                 removed = self.ledger.trim_leading(node, block_id)
                 if removed:
@@ -469,6 +560,17 @@ class Editor:
             self.paragraph(node, block, role)
         if self.options.mode == "layout":
             self.empty_paragraphs()
+        from v1.enrich import captions, object_lists, structural_warnings
+
+        sources = captions(self)
+        if self.options.convert_manual_lists:
+            from v1.list_fields import convert_lists
+
+            convert_lists(self)
+        if self.options.signature_position == "end_of_body":
+            from v1.finishing import position_signature
+
+            position_signature(self)
         if self.options.cover != "keep":
             from v1.fields import separate_cover
 
@@ -477,10 +579,24 @@ class Editor:
             from v1.fields import create_toc
 
             create_toc(self)
+        if self.options.toc == "keep" and self.analysis.toc_region:
+            from v1.fields import separate_existing_toc
+
+            separate_existing_toc(self)
+        object_lists(self, sources)
+        if self.options.object_lists:
+            from v1.finishing import glossary
+
+            glossary(self)
+        structural_warnings(self)
         if self.options.page_numbers == "arabic":
             from v1.fields import add_page_numbers
 
             add_page_numbers(self)
+        elif self.options.page_numbers == "academic":
+            from v1.academic import academic_sections
+
+            academic_sections(self)
         self.ledger.verify()
         return self
 
@@ -516,11 +632,56 @@ class Editor:
             raise DocumentError("Chiều cao vùng in không hợp lệ.") from None
 
     def table(self, table, block):
-        if not block["simple"] or table.xpath(PROTECTED, namespaces=NS):
+        if (
+            block["position"] <= self.cover_position
+            and self.options.cover != "keep"
+            and not table.xpath(PROTECTED + " | .//w:tbl", namespaces=NS)
+        ):
+            self.prop(ensure(table, "tblPr"), "jc", {"val": "center"})
+            if block.get("format_safe"):
+                available = self._available_width(block)
+                grid = table.findall("w:tblGrid/w:gridCol", NS)
+                weights = [max(1, int(c.get(q("w"), "1"))) for c in grid]
+                widths = [int(available * value / sum(weights)) for value in weights]
+                widths[-1] += available - sum(widths)
+                self.prop(
+                    ensure(table, "tblPr"), "tblW", {"w": available, "type": "dxa"}
+                )
+                self.prop(ensure(table, "tblPr"), "tblLayout", {"type": "fixed"})
+                for col, width in zip(grid, widths):
+                    col.set(q("w"), str(width))
+                for row in table.findall(q("tr")):
+                    cursor = 0
+                    for cell in row.findall(q("tc")):
+                        span_node = cell.find("w:tcPr/w:gridSpan", NS)
+                        span = (
+                            int(span_node.get(q("val"))) if span_node is not None else 1
+                        )
+                        self.prop(
+                            ensure(cell, "tcPr"),
+                            "tcW",
+                            {"w": sum(widths[cursor : cursor + span]), "type": "dxa"},
+                        )
+                        cursor += span
+            for p in table.xpath("./w:tr/w:tc/w:p", namespaces=NS):
+                self.cover(
+                    p,
+                    {
+                        **block,
+                        "text": plain(text_of(p)),
+                        "role": "body",
+                        "protected": False,
+                    },
+                )
+            self.log("cover", block["id"], "cover_table_alignment")
+            return
+        if not block.get("format_safe", block["simple"]) or table.xpath(
+            PROTECTED + " | .//w:drawing", namespaces=NS
+        ):
             self.warn(
                 "complex_table",
                 "Bảng phức tạp được giữ nguyên",
-                "Bảng có ô gộp, bảng lồng hoặc đối tượng đặc biệt; chưa tự co hoặc đổi cấu trúc.",
+                "Bảng lồng, lưới thiếu/không nhất quán hoặc có đối tượng đặc biệt; không tự đổi cấu trúc.",
                 block["id"],
             )
             return
@@ -576,6 +737,11 @@ class Editor:
         for col, width in zip(table.findall("w:tblGrid/w:gridCol", NS), widths):
             col.set(q("w"), str(width))
         header = block["header"] or block["id"] in self.options.table_headers
+        compact = (
+            len(rows) <= 6
+            and sum(len(text_of(r)) for r in rows) < 800
+            and all(len(text_of(c)) < 250 for r in rows for c in r.findall(q("tc")))
+        )
         for ri, row in enumerate(rows):
             if header and ri == 0:
                 self.prop(ensure(row, "trPr"), "tblHeader", {"val": 1})
@@ -587,9 +753,15 @@ class Editor:
                 (len(text_of(c)) for c in row.findall(q("tc"))), default=0
             ) < 350 and not row.xpath(".//w:drawing | .//w:br", namespaces=NS):
                 self.prop(ensure(row, "trPr"), "cantSplit", {"val": 1})
+            cursor = 0
             for ci, cell in enumerate(row.findall(q("tc"))):
                 cp = ensure(cell, "tcPr")
-                self.prop(cp, "tcW", {"w": widths[ci], "type": "dxa"})
+                span_node = cp.find(q("gridSpan"))
+                span = int(span_node.get(q("val"))) if span_node is not None else 1
+                self.prop(
+                    cp, "tcW", {"w": sum(widths[cursor : cursor + span]), "type": "dxa"}
+                )
+                cursor += span
                 self.prop(
                     cp, "vAlign", {"val": "center" if ri == 0 and header else "top"}
                 )
@@ -610,7 +782,9 @@ class Editor:
                         override={
                             "alignment": "right"
                             if numeric and not (ri == 0 and header)
-                            else "left"
+                            else "left",
+                            "keep_next": ri < len(rows) - 1
+                            and (compact or ri == 0 and header or ri == len(rows) - 2),
                         },
                     )
                     if header and ri == 0:
@@ -671,8 +845,32 @@ class Editor:
                 )
                 continue
             self._image_aspect(inline, cx, cy, block)
-            if cx > 0 and cy > 0 and (cx > max_cx or cy > max_cy):
-                ratio = min(1, max_cx / cx, max_cy / cy)
+            cover_image = block["position"] <= self.cover_position
+            limit_x = max_cx * 0.3 if cover_image else max_cx
+            limit_y = max_cy * 0.2 if cover_image else max_cy
+            ratio = min(1, limit_x / cx, limit_y / cy) if cx > 0 and cy > 0 else 1
+            if not cover_image and cx > 0 and cy > 0 and cx < max_cx * 0.65:
+                pixels = self._raster_size(inline)
+                if (
+                    self.options.enlarge_images
+                    and pixels
+                    and pixels[0] >= 1000
+                    and not inline.xpath(".//a:srcRect", namespaces={"a": A})
+                    and not inline.xpath(
+                        ".//a:xfrm[@rot and @rot!='0']", namespaces={"a": A}
+                    )
+                ):
+                    ratio = min(
+                        max_cx * 0.9 / cx, max_cy / cy, pixels[0] / 150 * 914400 / cx
+                    )
+                if ratio <= 1:
+                    self.warn(
+                        "image_small",
+                        "Ảnh có thể quá nhỏ để đọc",
+                        "Giữ ảnh nhỏ/cắt xén hoặc ảnh thiếu độ phân giải; hãy kiểm tra chữ trong hình, không phóng mờ tự động.",
+                        block["id"],
+                    )
+            if cx > 0 and cy > 0 and abs(ratio - 1) > 0.001:
                 nx, ny = int(cx * ratio), int(cy * ratio)
                 extent.set("cx", str(nx))
                 extent.set("cy", str(ny))
@@ -685,6 +883,39 @@ class Editor:
         self.prop(props, "keepLines", {"val": 1})
         if canonical(p) != before:
             self.log("images", block["id"], "inline_image_layout")
+
+    def _raster_size(self, inline):
+        relname = "word/_rels/document.xml.rels"
+        if relname not in self.package.parts:
+            return None
+        for blip in inline.xpath(".//a:blip", namespaces={"a": A}):
+            rid = blip.get(
+                "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed"
+            )
+            rel = next(
+                (
+                    r
+                    for r in self.package.xml(relname)
+                    if r.get("Id") == rid and r.get("TargetMode") != "External"
+                ),
+                None,
+            )
+            if rel is None:
+                continue
+            target = rel.get("Target", "")
+            name = (
+                target.lstrip("/")
+                if target.startswith("/")
+                else posixpath.normpath(posixpath.join("word", target))
+            )
+            raw = self.package.parts.get(name)
+            if raw:
+                try:
+                    with Image.open(BytesIO(raw)) as image:
+                        return image.size
+                except (OSError, ValueError, Image.DecompressionBombError):
+                    return None
+        return None
 
     def _image_aspect(self, inline, cx, cy, block):
         if cx <= 0 or cy <= 0 or inline.xpath(".//a:srcRect", namespaces={"a": A}):
@@ -741,8 +972,9 @@ class Editor:
             return
         text = folded(block["text"])
         title = (
-            bool(re.search(r"bao cao|tieu luan|do an|luan van", text))
-            and len(text) < 160
+            bool(re.match(r"^(?:bao cao|tieu luan|do an|luan van)\b", text))
+            and len(text) < 110
+            and not text.endswith((".", "…"))
         )
         first_positions = [
             b["position"]
@@ -757,20 +989,38 @@ class Editor:
             and len(text) < 90
             and block["position"] == max(first_positions, default=-1)
         )
+        cover_lines = sum(
+            max(1, (len(b["text"]) + 59) // 60)
+            for b in self.analysis.blocks
+            if b["position"] <= self.cover_position and b["text"]
+        )
+        scale = min(
+            1.0, self._available_height(block) / max(1, cover_lines * 420 + 3200)
+        )
         spec = {
             "alignment": "center" if self.options.cover == "academic" else "left",
             "size": 40 if title else (28 if at_top else self.design.size),
-            "before": 1080 if title else (720 if date else 160),
+            "before": int(self._available_height(block) * 0.08 * scale)
+            if title
+            else (int(600 * scale) if date else 160),
             "after": 360 if title else 160,
             "bold": title or at_top,
             "color": self.design.accent,
         }
         if self.options.cover == "minimal" and title:
-            spec.update(size=48, before=1440, after=480)
+            spec.update(
+                size=44,
+                before=int(self._available_height(block) * 0.1 * scale),
+                after=360,
+            )
+        if re.match(r"^de tai\b", text):
+            spec.update(size=30, bold=True, before=320, after=240)
         if self.options.cover == "academic" and re.search(
             r"giang vien|sinh vien|ma so|ma lop|nhom", text
         ):
-            spec.update(alignment="left", left=1440, before=200)
+            spec.update(alignment="center", left=0, before=200)
+        if len(text.split()) > 20 or text.endswith((".", "…")):
+            spec.update(size=22, bold=False, before=120, after=120, color="59645F")
         if self.options.mode == "layout":
             removed = self.ledger.trim_leading(p, block["id"], permit_tabs=True)
             if removed:

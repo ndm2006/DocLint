@@ -112,9 +112,12 @@ class EngineV1Tests(unittest.TestCase):
         for node, before, _ in editor.ledger.locks:
             self.assertEqual(canonical(node), before)
         original = Package(data)
-        self.assertEqual(
+        self.assertNotEqual(
             canonical(original.document.xpath(".//w:sectPr", namespaces=NS)[0]),
             canonical(editor.package.document.xpath(".//w:sectPr", namespaces=NS)[0]),
+        )
+        self.assertEqual(
+            editor.package.document.find(".//" + q("pgSz")).get(q("w")), "11906"
         )
 
     def test_manual_block_lock(self):
@@ -203,18 +206,22 @@ class EngineV1Tests(unittest.TestCase):
         widths = [int(c.get(q("w"))) for c in table.findall("w:tblGrid/w:gridCol", NS)]
         self.assertEqual(sum(widths), e._available_width(e.analysis.blocks[0]))
 
-    def test_complex_table_never_changes(self):
+    def test_merged_table_formats_without_changing_cell_topology(self):
         d = Document()
         t = d.add_table(rows=2, cols=2)
         t.cell(0, 0).merge(t.cell(0, 1))
         t.cell(0, 0).text = "Ô gộp"
         data = save(d)
         e = Editor(data).run()
-        self.assertEqual(
+        self.assertNotEqual(
             canonical(Package(data).document.find(".//" + q("tbl"))),
             canonical(e.package.document.find(".//" + q("tbl"))),
         )
-        self.assertIn("complex_table", [w["code"] for w in e.warnings])
+        self.assertEqual(
+            structural_signature(Package(data).document),
+            structural_signature(e.package.document),
+        )
+        self.assertTrue(e.ledger.verify_bytes(e.package.serialize()))
 
     def test_image_fit_retains_ratio_and_bytes(self):
         data = fixture(4)

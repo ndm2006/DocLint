@@ -7,7 +7,7 @@ import platform
 import sys
 from uuid import uuid4
 
-BUILD = "v1-guided-review-frontmatter"
+BUILD = "v1-academic-layout-20261020"
 BASE = Path(__file__).resolve().parents[1]
 logger = logging.getLogger("doclint")
 

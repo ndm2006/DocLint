@@ -82,12 +82,28 @@ class Design:
             )
         elif role == "caption":
             values.update(
-                size=self.size if self.profile_id == "hust" else 22,
+                size=24 if self.profile_id == "hust" else 22,
                 first=0,
                 alignment="center",
                 before=100,
                 after=160,
                 line=276,
+                keep_lines=True,
+                italic=True,
+            )
+        elif role == "lead_in":
+            values.update(first=0, keep_next=True, keep_lines=True, after=80)
+        elif role == "code":
+            values.update(
+                font="Consolas",
+                size=21,
+                line=260,
+                first=0,
+                left=160,
+                right=160,
+                before=120,
+                after=120,
+                alignment="left",
                 keep_lines=True,
             )
         elif role == "quote":
@@ -179,6 +195,8 @@ class Design:
         attrs(rp, "color", {"val": spec["color"]})
         if spec["bold"]:
             attrs(rp, "b", {"val": 1})
+        if spec.get("italic"):
+            attrs(rp, "i", {"val": 1})
         # Never mutate an existing style, which may also be used in a locked region.
         for suffix in range(100):
             sid = base_id if suffix == 0 else f"{base_id}x{suffix}"

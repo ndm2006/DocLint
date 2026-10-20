@@ -1,6 +1,6 @@
 # Phạm vi và nghiệm thu DocLint V1
 
-V1 không có API AI. Mọi phép nhận diện có thể giải thích bằng dấu hiệu và quy tắc; trường hợp chưa chắc được gộp theo cùng một quyết định để người dùng duyệt hoặc giữ nguyên. Không đưa toàn bộ đoạn văn thành danh sách lựa chọn. Tài liệu này mô tả hành vi được triển khai, không phải lời hứa xử lý mọi báo cáo.
+V1 không có API AI. Mọi phép nhận diện có thể giải thích bằng dấu hiệu và quy tắc; trường hợp chưa chắc được gộp theo cùng một quyết định để người dùng duyệt hoặc giữ nguyên. Không đưa toàn bộ đoạn văn thành danh sách lựa chọn. Tài liệu này mô tả hành vi được triển khai, không phải lời hứa xử lý mọi báo cáo. Cập nhật chi tiết theo đánh giá bảy mức ưu tiên: [PRIORITY_LAYOUT_REVIEW.md](PRIORITY_LAYOUT_REVIEW.md).
 
 | Lỗi/thói quen | Nhận diện và xử lý | Điều kiện bảo vệ/giới hạn | Kiểm chứng |
 | --- | --- | --- | --- |
@@ -9,18 +9,18 @@ V1 không có API AI. Mọi phép nhận diện có thể giải thích bằng d
 | Giãn dòng/đoạn | Mẫu riêng cho thân bài, quote, reference, caption và list | Vùng khóa/section đặc biệt giữ nguyên; không ép mọi đoạn một kiểu | Kiểm tra style, lặp lại không phát sinh thay đổi |
 | Enter để sang trang | Chuỗi >=2 đoạn thật sự rỗng trước chương cấp 1 → pageBreakBefore; làm sạch đệm ở ranh giới bìa/mục lục | Chế độ layout; không bỏ bookmark, section, revision, đối tượng hoặc paragraph ID có tham chiếu; chỉ bỏ Space/Tab đầu đệm theo phép sửa đã đăng ký | Bài protected blank, Word editing IDs, external ID reference; nhật ký phép xóa được phép |
 | Space/Tab căn lề | Tự xử lý các trường hợp đủ rõ; người dùng chọn body/center/right_block/keep cho khối khó | Chỉ đầu đoạn; không cắt Tab/Space giữa nội dung; strict không cho thay | Bài strict/layout, reviewed Tab, code, short alignment |
-| Danh sách gõ tay | Kiểu thụt treo; danh sách thật giữ style cung cấp numbering | Không tự xóa tiền tố hoặc đánh lại số | Bài inherited numbering; so sánh ký tự |
-| Bảng quá rộng/xấu | Bảng đơn giản: vùng in, cột theo nội dung, đệm/viền/chữ; tiêu đề hàng đầu có xác nhận | Không đổi ô/số liệu; bảng gộp, lồng, có đối tượng đặc biệt giữ/cảnh báo | Bài table widths/header, complex table, corpus |
+| Danh sách gõ tay | Kiểu thụt treo; tùy chọn numbering thật cho chuỗi liên tiếp, giữ số đầu/dấu; danh sách thật giữ style | Chỉ chuyển tiền tố trong layout theo tùy chọn; không đánh lại chuỗi số mơ hồ | Bài inherited numbering; so sánh ký tự |
+| Bảng quá rộng/xấu | Bảng đơn giản/ô gộp có lưới đầy đủ: vùng in, cột theo nội dung, đệm/viền/chữ; tiêu đề hàng đầu có xác nhận | Không đổi ô/số liệu; giữ topology ô gộp; bảng lồng, lưới thiếu hoặc có đối tượng đặc biệt giữ/cảnh báo | Bài table widths/header, complex table, corpus |
 | Hàng bị cắt | Hàng ngắn dùng cantSplit; hàng cao cố định chuyển mức tối thiểu khi bảng được chuẩn hóa | Không cấm tách toàn bộ hàng dài; kiểm tra Word vẫn cần thiết | XML và PDF; không tuyên bố hiểu mọi chiều cao hàng |
-| Ảnh tràn/méo | Ảnh inline vừa vùng in cả hai chiều; giữ tỷ lệ hiện tại; cảnh báo lệch tỷ lệ so ảnh gốc | Không phóng ảnh nhỏ; không đổi neo/wrap/nhóm nhiều ảnh/crop tự động | Bài image ratio/media, portrait height |
+| Ảnh tràn/méo | Ảnh inline vừa vùng in cả hai chiều; giữ tỷ lệ hiện tại; cảnh báo lệch tỷ lệ so ảnh gốc | Chỉ phóng ảnh độ phân giải cao khi đủ điều kiện; không phóng icon/ảnh thiếu điểm ảnh; không đổi neo/wrap/nhóm nhiều ảnh/crop tự động | Bài image ratio/media, portrait height |
 | Chú thích xa đối tượng | Liên kết đối tượng liền kề duy nhất hoặc lựa chọn của người dùng; keepNext/keepLines | Không di chuyển tùy tiện, không đổi số/tên; tên bảng sau bảng có cảnh báo | Bài caption ambiguity, dựng và xem trang |
 | Mục lục gõ tay/sai | Nhận diện vùng cũ, thay khi được duyệt; tạo trường TOC trong phạm vi thân bài, tách trang trước/sau và đối chiếu cache trang <=3 lượt | Không xóa vùng mơ hồ; thiếu dữ kiện/trang chưa ổn định thì partial/cần Word cập nhật | Bài manual TOC, field updateable, tích hợp PDF số trang |
-| Footer/số trang | Tạo phần footer riêng và sao chép quan hệ ảnh/liên kết, giữ nội dung/part gốc, tùy chọn trang đầu ẩn | Giữ số trang gốc và báo partial nếu section phức tạp, footer chẵn/lẻ riêng, field lồng nhau hoặc quan hệ bị thiếu; chưa cung cấp mọi phối hợp La Mã–Ả Rập | Bài footer/header, ảnh và hyperlink, header ẩn, package relationship, PDF label |
-| Bìa dựng thủ công | Nhận diện vùng, áp mẫu học thuật/tối giản theo thông tin sẵn có và tách thành trang riêng; không gộp đoạn mở đầu vào bìa | Mặc định giữ; không bịa logo/tên/ngày; bảng dựng bìa giữ cấu trúc | Bài cover boundary, ký tự không đổi; duyệt trang |
+| Footer/số trang | Tạo phần footer riêng và sao chép quan hệ ảnh/liên kết, giữ nội dung/part gốc, tùy chọn trang đầu ẩn | Giữ số trang gốc và báo partial nếu section phức tạp, footer chẵn/lẻ riêng, field lồng nhau hoặc quan hệ bị thiếu; cung cấp phần đầu La Mã–thân bài từ 1 khi section nguồn đủ rõ, chưa hỗ trợ mọi hệ thống đánh số | Bài footer/header, ảnh và hyperlink, header ẩn, package relationship, PDF label |
+| Bìa dựng thủ công | Nhận diện vùng, áp mẫu học thuật/tối giản theo thông tin sẵn có và tách thành trang riêng; không gộp đoạn mở đầu vào bìa | Giao diện mặc định mẫu học thuật khi nhận diện được bìa, API giữ bìa nếu không chọn; không bịa logo/tên/ngày; bảng dựng bìa giữ cấu trúc | Bài cover boundary, ký tự không đổi; duyệt trang |
 | Tiêu đề lẻ/trang thưa | Thuộc tính giữ đoạn; PDF định vị tiêu đề gần cuối trang và trang ít chữ | Không xóa trang trắng có chủ đích hoặc thu nhỏ chữ để bớt trang | PDF cảnh báo có số trang; không coi heuristic là chứng nhận tuyệt đối |
 | Nội dung vượt vùng in | Đối chiếu text/image bounds của PDF với giới hạn định vị được | Phụ thuộc khớp section/trang; đầu/chân trang loại khỏi kiểm tra lề ngang | Warnings print_area; người dùng xem lại, không sửa mất nội dung |
 | Section ngang/nhiều cột | Lập bản đồ trước khi đổi hình học trang | Giữ section đặc biệt và section có vùng khóa; không chuyển IEEE tự động | Corpus landscape; exact region locks |
-| Tham khảo, code, math, revision | Phân loại, khóa vùng tùy chọn; bỏ qua cấu trúc rủi ro | Không sửa chuẩn trích dẫn, mã hoặc công thức | OMML/text/media corruption injection, code whitespace, refs/appendices |
+| Tham khảo, code, math, revision | Phân loại, khóa vùng tùy chọn; chuẩn hóa định dạng tham khảo/code; bỏ qua cấu trúc rủi ro | Không sửa chuẩn trích dẫn, ký tự mã hoặc công thức | OMML/text/media corruption injection, code whitespace, refs/appendices |
 
 ## Cổng kiểm chứng
 
@@ -38,8 +38,8 @@ Không được kết luận một DOCX bất kỳ an toàn/đẹp chỉ từ co
 
 - Chuyển sang IEEE hai cột; mọi kiểu biểu mẫu, hợp đồng và bố cục tạp chí.
 - Viết lại/dịch/tóm tắt nội dung, kiểm tra đạo văn hoặc sửa trích dẫn học thuật.
-- Đánh lại toàn bộ số hình/bảng và tham chiếu chéo.
-- Biến mọi danh sách gõ tay thành numbering tự động.
+- Đánh lại toàn bộ số hình/bảng mơ hồ hoặc đoán mọi cách viết tham chiếu chéo; chỉ chuyển nhãn rõ ràng, giữ cách ghi hiện tại.
+- Biến mọi danh sách gõ tay/phức tạp thành numbering tự động; chỉ hỗ trợ chuỗi số liên tiếp, đơn giản theo tùy chọn.
 - Tự di chuyển ảnh nổi, gộp/tách ô, tái cấu trúc bảng phức tạp.
 - Cam kết bộ dựng LibreOffice giống Word từng điểm ảnh.
 - Đo mức hài lòng hoặc “wow” của người dùng khi chưa có thử nghiệm người dùng.

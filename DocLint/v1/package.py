@@ -85,9 +85,11 @@ FORMAT_PROPERTIES = {
         "tabs",
         "contextualSpacing",
         "snapToGrid",
+        "pBdr",
+        "shd",
     },
     q("rPr"): {"rFonts", "sz", "szCs", "b", "bCs", "i", "iCs", "color"},
-    q("sectPr"): {"pgMar", "pgSz", "pgNumType", "titlePg"},
+    q("sectPr"): {"pgMar", "pgSz", "pgNumType", "titlePg", "vAlign", "pgBorders"},
     q("tblPr"): {
         "tblW",
         "tblInd",
@@ -139,7 +141,7 @@ def structural_signature(root):
     def token(node):
         if not isinstance(node.tag, str):
             return ("comment", node.text)
-        text = node.text
+        text = node.text or None
         if len(node) and text and not text.strip():
             text = None
         return (
@@ -186,6 +188,18 @@ class IntegrityLedger:
         self.locks.append((node, canonical(node), block_id))
 
     def append_generated(self, parent, node, reason, index=None):
+        if (
+            parent not in self.pairs
+            and parent.tag in FORMAT_PROPERTIES
+            and all(
+                child.tag in {q(n) for n in FORMAT_PROPERTIES[parent.tag]}
+                for child in parent
+            )
+        ):
+            expected_owner = self.pairs[parent.getparent()]
+            clone = deepcopy(parent)
+            expected_owner.insert(list(parent.getparent()).index(parent), clone)
+            self.pairs.update(zip(parent.iter(), clone.iter()))
         expected_parent = self.pairs[parent]
         if index is None:
             index = len(parent)
@@ -359,6 +373,97 @@ class IntegrityLedger:
                 "operation": "authorized_toc_replacement",
                 "count": len(nodes),
             }
+        )
+
+    def replace_plain_run(self, run, nodes, rule):
+        """Introduce SEQ/REF markup only when every visible character is equal."""
+        if (
+            run.tag != q("r")
+            or run.getparent().tag != q("p")
+            or len(run.findall(q("t"))) != 1
+            or any(n.tag not in {q("rPr"), q("t")} for n in run)
+        ):
+            raise DocumentError("Chỉ chuyển trường trên run văn bản đơn giản.")
+        original = "".join(run.xpath(".//w:t/text()", namespaces=NS))
+        result = "".join(
+            t for node in nodes for t in node.xpath(".//w:t/text()", namespaces=NS)
+        )
+        if original != result:
+            raise DocumentError("Chuyển trường đã làm thay đổi chữ hoặc số gốc.")
+        parent = run.getparent()
+        at = list(parent).index(run)
+        expected = self.pairs[run]
+        expected.getparent().remove(expected)
+        parent.remove(run)
+        for index, node in enumerate(nodes):
+            self.append_generated(parent, node, rule, at + index)
+        self.events.append(
+            {"rule": rule, "operation": "text_equal_field_conversion", "count": 1}
+        )
+
+    def move_signature(self, nodes, target):
+        body = self.package.document.find(q("body"))
+        if (
+            not nodes
+            or any(
+                n.tag != q("p") or n.getparent() is not body or n not in self.pairs
+                for n in nodes
+            )
+            or target.getparent() is not body
+            or target in nodes
+        ):
+            raise DocumentError("Khối chữ ký không hợp lệ để bố trí lại.")
+        expected_body = self.pairs[body]
+        expected_nodes = [self.pairs[n] for n in nodes]
+        for node, expected in zip(nodes, expected_nodes):
+            body.remove(node)
+            expected_body.remove(expected)
+        at = list(body).index(target)
+        expected_at = list(expected_body).index(self.pairs[target])
+        for offset, (node, expected) in enumerate(zip(nodes, expected_nodes)):
+            body.insert(at + offset, node)
+            expected_body.insert(expected_at + offset, expected)
+        self.events.append(
+            {
+                "rule": "signature",
+                "operation": "approved_signature_relocation",
+                "count": len(nodes),
+            }
+        )
+
+    def consume_list_prefix(self, node, prefix, block_id):
+        if (
+            node.tag != q("t")
+            or node not in self.pairs
+            or not re.fullmatch(r"\d+[.)]\s+", prefix)
+            or not (node.text or "").startswith(prefix)
+        ):
+            raise DocumentError("Tiền tố danh sách không hợp lệ.")
+        node.text = node.text[len(prefix) :]
+        self.pairs[node].text = node.text
+        self.events.append(
+            {
+                "rule": "native_list",
+                "operation": "numbering_prefix_to_numPr",
+                "block_id": block_id,
+                "prefix": prefix,
+                "count": 1,
+            }
+        )
+
+    def consume_page_break(self, node):
+        """Replace a terminal page break with an approved section boundary."""
+        if (
+            node.tag != q("br")
+            or node.get(q("type")) != "page"
+            or node not in self.pairs
+        ):
+            raise DocumentError("Ngắt trang không hợp lệ để chuyển thành section.")
+        expected = self.pairs[node]
+        expected.getparent().remove(expected)
+        node.getparent().remove(node)
+        self.events.append(
+            {"rule": "sections", "operation": "page_break_to_section", "count": 1}
         )
 
     def update_generated_text(self, node, text):

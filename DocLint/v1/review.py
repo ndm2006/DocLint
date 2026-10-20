@@ -119,7 +119,7 @@ def review_plan(analysis):
         b["id"]
         for b in eligible
         if b["type"] == "table"
-        and b["simple"]
+        and b.get("format_safe", b["simple"])
         and not b["header"]
         and b["suggest_header"]
     ]

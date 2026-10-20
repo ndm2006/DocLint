@@ -1,6 +1,7 @@
 """Bounded local workflow, honest partial outcomes, and a final integrity gate."""
 
 from pathlib import Path
+import re
 import threading
 from core.processor import DocumentError
 from core.xmlutils import q
@@ -26,8 +27,25 @@ def _heading_list(editor):
     ]
 
 
-def page_label(editor, physical_page):
+def page_label(editor, physical_page, inspection=None):
     """Derive the Word counter from explicit section settings, never footer prose."""
+    if getattr(editor, "academic_numbering", False):
+        if not inspection:
+            return None
+        label = inspection["pages"][physical_page - 1]["label"]
+        body_start = inspection["block_pages"].get(editor.academic_body_id)
+        if (
+            label
+            and body_start
+            and physical_page < body_start
+            and re.fullmatch(r"[ivxlcdm]+", label.lower())
+        ):
+            return label.lower()
+        if label and label.isdigit() and int(label) > 0:
+            if body_start and int(label) != physical_page - body_start + 1:
+                return None
+            return label
+        return None
     if editor.numbering_applied:
         value = physical_page - int(editor.options.hide_first_page_number)
         return str(value) if value >= 0 else None
@@ -87,6 +105,13 @@ def format_document(
     progress("Đang dàn trang theo các lựa chọn đã duyệt")
     editor = Editor(data, options).run()
     heads = _heading_list(editor)
+    object_ids = {e["block_id"] for e in editor.toc_entries if e.get("object_list")}
+    object_targets = [
+        {**b, "text": plain(text_of(editor.analysis.elements[b["id"]]))}
+        for b in editor.analysis.blocks
+        if b["id"] in object_ids
+    ]
+    render_targets = sorted(heads + object_targets, key=lambda b: b["position"])
     section_bounds = {}
     for index, (_, section) in enumerate(editor.analysis.section_nodes):
         if editor.analysis.sections[index]["complex"]:
@@ -126,10 +151,12 @@ def format_document(
                 render_pdf(output, directory / "result.pdf", cancel=cancel)
                 inspection = inspect_pdf(
                     directory / "result.pdf",
-                    heads,
+                    render_targets,
                     editor.analysis.blocks,
                     section_bounds,
                 )
+                for bid in object_ids:
+                    inspection["headings"].pop(bid, None)
                 render_status = {
                     "available": True,
                     "page_count": inspection["page_count"],
@@ -141,10 +168,13 @@ def format_document(
                 unresolved = []
                 for entry in editor.toc_entries:
                     location = inspection["headings"].get(entry["block_id"])
+                    if not location and entry.get("object_list"):
+                        page = inspection["block_pages"].get(entry["block_id"])
+                        location = {"page": page} if page else None
                     if not location:
                         unresolved.append(entry["block_id"])
                         continue
-                    label = page_label(editor, location["page"])
+                    label = page_label(editor, location["page"], inspection)
                     if label is None:
                         unresolved.append(entry["block_id"])
                         continue

@@ -54,12 +54,23 @@ def _flow_before(node):
 
 
 def _separate_before(editor, node, rule):
-    if node is None or _ends_page(_flow_before(node)):
+    if node is None:
         return
     block_id = next(
         (bid for bid, element in editor.analysis.elements.items() if element is node),
         None,
     )
+    if _ends_page(_flow_before(node)):
+        if node.tag == q("p") and block_id not in editor.locked:
+            existing = node.find("w:pPr/w:pageBreakBefore", NS)
+            if existing is not None and existing.get(q("val"), "1") not in {
+                "0",
+                "false",
+                "off",
+            }:
+                editor.prop(ensure(node, "pPr"), "pageBreakBefore", {"val": 0})
+                editor.log(rule, block_id, "avoid_duplicate_break")
+        return
     if node.tag == q("p"):
         existing = editor.analysis.resolver.property(node, "w:pPr/w:pageBreakBefore")
         if existing is not None and existing.get(q("val"), "1") not in {
@@ -139,6 +150,24 @@ def separate_cover(editor):
         (n for n in list(body)[start:] if n.tag in {q("p"), q("tbl"), q("sdt")}), None
     )
     _separate_before(editor, following, "cover")
+
+
+def separate_existing_toc(editor):
+    nodes = [
+        n for n in editor.analysis.toc_nodes if n.getparent() is editor.analysis.body
+    ]
+    if not nodes:
+        return
+    _separate_before(editor, nodes[0], "toc")
+    following = nodes[-1].getnext()
+    while following is not None and following.tag not in {q("p"), q("tbl"), q("sdt")}:
+        following = following.getnext()
+    _separate_before(editor, following, "toc")
+    editor.warn(
+        "existing_toc_kept",
+        "Mục lục cũ đã được tách trang",
+        "Giữ nội dung mục lục cũ; chọn thay mục lục nếu muốn dựng lại và đối chiếu số trang.",
+    )
 
 
 def create_toc(editor):
@@ -312,13 +341,15 @@ def create_toc(editor):
 
 def finalize_toc_cache(editor):
     """Mark only our verified generated TOC as current; never lock its field."""
-    if editor.generated_toc is None:
-        return
-    for node in editor.generated_toc.xpath(
-        './/w:fldChar[@w:fldCharType="begin"]', namespaces=NS
-    ):
-        node.set(q("dirty"), "false")
-        editor.ledger.pairs[node].set(q("dirty"), "false")
+    containers = (
+        [editor.generated_toc] if editor.generated_toc is not None else []
+    ) + getattr(editor, "frontmatter_nodes", [])
+    for container in containers:
+        for node in container.xpath(
+            './/w:fldChar[@w:fldCharType="begin"]', namespaces=NS
+        ):
+            node.set(q("dirty"), "false")
+            editor.ledger.pairs[node].set(q("dirty"), "false")
 
 
 def defer_field_updates(editor):
@@ -534,6 +565,16 @@ def add_page_numbers(editor):
     # Preflight all referenced footers before changing a single section. A partial
     # numbering rewrite would make the cached TOC counters ambiguous.
     try:
+        if any(
+            any(
+                editor.analysis.elements[bid] in section.iterancestors()
+                for bid in editor.locked
+            )
+            for _, section in editor.analysis.section_nodes
+        ):
+            raise ValueError(
+                "Section nằm trong vùng bìa hoặc đoạn được khóa; giữ số trang gốc."
+            )
         if any(s["complex"] for s in editor.analysis.sections):
             raise ValueError(
                 "Section ngang hoặc nhiều cột cần giữ hệ thống số trang gốc."

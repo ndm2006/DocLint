@@ -44,6 +44,10 @@ Sau khi tải lên:
 - Mục lục chỉ có hai lựa chọn phù hợp với tài liệu: giữ hiện tại hoặc tạo/thay thế. Mục lục bắt đầu trên trang riêng và nội dung bắt đầu ở trang sau mục lục; mục lục dài được phép tiếp tục sang nhiều trang.
 - Xem trước–sau, đọc cảnh báo, tải bản Word riêng và mở Word xem lần cuối.
 
+Giao diện mặc định dàn bìa học thuật khi nhận diện được bìa, tạo/thay mục lục khi có đủ tiêu đề và dùng số trang học thuật. Phần đầu dùng La Mã, Chương 1 bắt đầu từ 1 khi xác định được cấu trúc. Tham khảo/phụ lục mặc định được đồng bộ định dạng, luôn giữ nội dung; tùy chọn nâng cao cho phép giữ cả cách trình bày cũ.
+
+Caption có thể chuyển sang SEQ/REF mà giữ nhãn hiện tại; danh mục hình/bảng và viết tắt lấy từ thông tin sẵn có. Danh sách Word thật và việc chuyển khối chữ ký về cuối thân bài là tùy chọn nâng cao. Chi tiết theo bảy mức ưu tiên và giới hạn: [Đối chiếu đánh giá bố cục](docs/PRIORITY_LAYOUT_REVIEW.md).
+
 Mỗi lần đổi phương án đều xử lý từ **bản gốc**, tránh tích lũy những thay đổi không mong muốn.
 
 ## Đã triển khai và phạm vi an toàn
@@ -53,26 +57,26 @@ Mỗi lần đổi phương án đều xử lý từ **bản gốc**, tránh tí
 | Phân tích | Mã khối, style kế thừa, vai trò, section, vùng bìa, mục lục, tham khảo/phụ lục; nhận định có giải thích |
 | Tiêu đề | Tự nhận chuỗi đề mục rõ ràng; nhóm chưa chắc chỉ hỏi giữ nguyên hoặc dùng cấp đề xuất; tạo Heading/outline thật, không đổi tên hoặc đánh lại số |
 | Thân bài | Phông/cỡ theo vai trò, khoảng cách, giãn dòng, căn lề; giữ nhấn mạnh, chỉ số và phông ký hiệu |
-| Space/Tab | Chế độ giữ nguyên mặc định; làm sạch đầu đoạn có điều kiện hoặc theo lựa chọn cụ thể; không cắt ký tự giữa nội dung |
+| Space/Tab | Có chế độ giữ nguyên ký tự; làm sạch đầu đoạn có điều kiện hoặc theo lựa chọn cụ thể; không cắt ký tự giữa nội dung |
 | Enter | Làm sạch chuỗi rỗng trước chương và khoảng đệm bìa/mục lục theo phạm vi; bảo vệ bookmark, ngắt section, đối tượng, revision và tham chiếu paragraph ID |
-| Danh sách | Giữ số/ký hiệu đang có, chuẩn hóa hình thức; giữ style cung cấp numbering, chưa đổi danh sách gõ tay sang số tự động |
-| Bảng đơn giản | Độ rộng theo vùng in, phân bổ cột, đệm ô, kiểu chữ/viền, hàng tiêu đề có xác nhận; không đổi ô/số liệu |
-| Ảnh | Thu ảnh trong dòng theo cả chiều rộng/cao, giữ tỷ lệ hiển thị và dữ liệu ảnh; cảnh báo ảnh có thể bị kéo méo |
-| Chú thích | Liên kết đối tượng liền kề duy nhất hoặc được duyệt; giữ ảnh/chú thích cùng nhau bằng thuộc tính Word |
+| Danh sách | Giữ số/ký hiệu đang có, chuẩn hóa hình thức; giữ style cung cấp numbering; tùy chọn chuyển chuỗi số gõ tay rõ ràng sang numbering thật |
+| Bảng có lưới rõ | Độ rộng theo vùng in, phân bổ cột, đệm ô, kiểu chữ/viền, hàng tiêu đề có xác nhận; hỗ trợ ô gộp khi lưới đầy đủ, không đổi ô/số liệu |
+| Ảnh | Thu ảnh vừa vùng in; phóng ảnh độ phân giải cao đang quá nhỏ với giới hạn chiều cao/mật độ điểm ảnh; giữ dữ liệu và tỷ lệ |
+| Chú thích | Liên kết đối tượng liền kề duy nhất hoặc được duyệt; giữ ảnh/chú thích cùng nhau; SEQ/REF khi đủ căn cứ, không đánh lại nhãn mơ hồ |
 | Bìa | Mẫu học thuật/tối giản từ thông tin sẵn có, tách thành trang riêng; nhận diện ranh giới trước phần mở đầu, không bịa tên/ngày/logo |
 | Mục lục | Trường TOC thật trong phạm vi thân bài, bắt đầu trang riêng và tách phần nội dung; thay mục lục cũ chỉ khi được duyệt, đối chiếu tối đa 3 bản dựng |
-| Số trang | Footer riêng, bảo toàn phần gốc; tùy chọn trang đầu ẩn, trang thứ hai bắt đầu số 1; section phức tạp được giữ |
+| Số trang | Footer riêng, bảo toàn phần gốc; liên tục hoặc học thuật: bìa riêng, phần đầu La Mã, thân bài từ 1, phụ lục tiếp tục; section phức tạp được giữ và báo rõ |
 | Xem trước | PDF cục bộ, ảnh từng trang, điều hướng và đánh dấu các trang định vị được thay đổi/cảnh báo |
 | Toàn vẹn | Đối chiếu trước và sau đóng gói; vùng khóa kiểm tra chính xác; thành phần không sửa giữ byte-for-byte |
 | Vận hành | Hàng đợi giới hạn, timeout, hủy, TTL từ lúc tiếp nhận, khôi phục trạng thái sau gián đoạn |
 
-Các tình huống như bảng gộp ô/lồng, ảnh nổi, nhóm nhiều ảnh, content control, công thức, code, revision và bố cục ngang/nhiều cột được bảo vệ hoặc cảnh báo tùy phạm vi, không ép sửa.
+Các tình huống như bảng lồng/lưới không đầy đủ, ảnh nổi, nhóm nhiều ảnh, content control, công thức, revision và bố cục ngang/nhiều cột được bảo vệ hoặc cảnh báo tùy phạm vi, không ép sửa.
 
 Đặc tả đối chiếu từng lỗi và tiêu chí: [docs/V1_SCOPE.md](docs/V1_SCOPE.md).
 
 ## Quy tắc bảo toàn nội dung
 
-`v1/package.py` giữ một bản cấu trúc kỳ vọng độc lập với định dạng. Chỉ các thao tác nội dung có phạm vi cụ thể được đăng ký mới được phép: làm sạch đầu đoạn đã cho phép, bỏ đoạn thật sự rỗng đủ điều kiện, thay vùng mục lục đã duyệt và thêm cấu trúc sinh tự động. Thay câu chữ, số, công thức, đối tượng, liên kết hoặc dữ liệu bảng ngoài phạm vi đó sẽ làm đối chiếu thất bại và **không xuất kết quả**.
+`v1/package.py` giữ một bản cấu trúc kỳ vọng độc lập với định dạng. Chỉ các thao tác nội dung có phạm vi cụ thể được đăng ký mới được phép: làm sạch đầu đoạn đã cho phép, bỏ đoạn thật sự rỗng đủ điều kiện, thay vùng mục lục đã duyệt, thêm cấu trúc sinh tự động, chuyển caption/tham chiếu sang field mà giữ chữ, chuyển tiền tố danh sách sang numbering theo tùy chọn, chuyển khối chữ ký rõ ràng theo yêu cầu và đổi ngắt trang thành ngắt section. Thay câu chữ, số, công thức, đối tượng, liên kết hoặc dữ liệu bảng ngoài phạm vi đó sẽ làm đối chiếu thất bại và **không xuất kết quả**.
 
 Các style mới được tách khỏi style gốc, tránh ảnh hưởng vùng khóa. Vùng khóa còn được so sánh chính xác thuộc tính/cấu trúc; section dùng chung có thể được giữ lề/khổ giấy để bảo vệ vùng khóa. Tệp gốc luôn tồn tại riêng trong thời hạn phiên.
 
