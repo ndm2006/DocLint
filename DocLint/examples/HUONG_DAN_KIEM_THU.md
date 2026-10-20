@@ -1,7 +1,7 @@
 # Bộ tệp kiểm thử DocLint V1
 
 Bộ này xuất các mẫu tổng hợp từ bộ kiểm thử của DocLint tại mã nguồn
-`3c4c1bc22f2cb55f06c0039cffaafc54bdf48216`. Không chứa tài liệu người dùng đã tải lên.
+`44360d152e7a8a784ddbe96c6add17d2c1693768`. Không chứa tài liệu người dùng đã tải lên.
 Các tệp mẫu cố ý có lỗi bố cục hoặc cấu trúc cần được giữ nguyên.
 
 ## Bắt đầu trên Windows
@@ -39,6 +39,9 @@ Thư mục `02_KET_QUA_THAM_CHIEU` có kết quả cho tệp **02, 03, 05**:
 - `.docx`: Word đã dàn trang bằng mã nguồn nêu trên.
 - `.pdf`: bản dựng bằng LibreOffice trên Linux để đối chiếu bố cục.
 - `.json`: báo cáo xử lý, trong đó có thiết lập đã dùng và kết quả kiểm tra toàn vẹn.
+
+Các bản Word tham chiếu đã áp dụng bản sửa giữ số trang mục lục đã đối chiếu,
+không ép cập nhật toàn bộ trường ngay khi mở và không khóa mục lục.
 
 Đây là kết quả chạy thực tế, không phải ảnh minh họa. Microsoft Word và LibreOffice
 có thể phân trang khác nhau tùy phiên bản và phông chữ. Nếu Word yêu cầu cập nhật
