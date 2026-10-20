@@ -6,6 +6,7 @@ from core.processor import DocumentError
 from core.xmlutils import q
 from v1.analysis import plain, text_of
 from v1.editor import Editor
+from v1.fields import finalize_toc_cache
 from v1.renderer import PreviewError, render_pdf, inspect_pdf, font_warnings
 
 
@@ -183,6 +184,8 @@ def format_document(
     if cancel.is_set():
         raise DocumentError("Công việc đã bị hủy.")
     progress("Đang đối chiếu toàn vẹn và đóng gói kết quả")
+    if toc_status == "verified":
+        finalize_toc_cache(editor)
     report = editor.report()
     report["warnings"].extend(stage_warnings)
     report.update(

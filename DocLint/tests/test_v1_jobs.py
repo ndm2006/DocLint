@@ -8,6 +8,8 @@ from unittest.mock import patch
 from docx import Document
 from fastapi.testclient import TestClient
 from api import create_app
+from core.xmlutils import NS
+from v1.package import Package
 from v1.renderer import PreviewError, find_office
 from v1_fixtures import fixture
 
@@ -81,6 +83,33 @@ class JobAPIV1Tests(unittest.TestCase):
         word = self.client.get(url + "/download")
         self.assertEqual(word.status_code, 200)
         Document(BytesIO(word.content))
+        downloaded = Package(word.content)
+        toc = downloaded.document.xpath(
+            './/w:sdt[w:sdtPr/w:tag[@w:val="DocLintTOC"]]', namespaces=NS
+        )[0]
+        cached_numbers = [
+            p.xpath("./w:r/w:t/text()", namespaces=NS)[-1]
+            for p in toc.xpath("./w:sdtContent/w:p[w:r/w:tab]", namespaces=NS)
+        ]
+        locations = meta["report"]["layout"]["headings"]
+        expected_numbers = [
+            str(locations[b["id"]]["page"] - 1)
+            for b in meta["analysis"]["blocks"]
+            if b["id"] in locations
+        ]
+        self.assertTrue(cached_numbers)
+        self.assertEqual(cached_numbers, expected_numbers)
+        self.assertNotIn("0", cached_numbers)
+        self.assertEqual(
+            downloaded.xml("word/settings.xml").xpath(
+                "./w:updateFields/@w:val", namespaces=NS
+            ),
+            ["false"],
+        )
+        self.assertEqual(
+            toc.xpath('.//w:fldChar[@w:fldCharType="begin"]/@w:dirty', namespaces=NS),
+            ["false"],
+        )
         self.assertTrue(
             self.client.get(url + "/preview/original.pdf").content.startswith(b"%PDF")
         )

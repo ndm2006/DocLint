@@ -57,7 +57,7 @@ class FrontmatterTests(unittest.TestCase):
         data = sample()
         a = Analysis(Package(data))
         with tempfile.TemporaryDirectory() as tmp:
-            _, report = format_document(
+            output, report = format_document(
                 data,
                 {
                     "cover": "academic",
@@ -80,6 +80,80 @@ class FrontmatterTests(unittest.TestCase):
             self.assertNotIn("INTRODUCTION_SENTINEL", pages[1])
             self.assertIn("INTRODUCTION_SENTINEL", pages[2])
             self.assertIn("BODY_SENTINEL", pages[2])
+            # The download must retain the same cached number as the PDF, and
+            # must not ask Word to discard that cache while opening the file.
+            exported = Package(output)
+            toc = exported.document.xpath(
+                './/w:sdt[w:sdtPr/w:tag[@w:val="DocLintTOC"]]', namespaces=NS
+            )[0]
+            self.assertEqual(toc.xpath(".//w:t/text()", namespaces=NS)[-1], "2")
+            self.assertIn("2", pages[1])
+            self.assertEqual(
+                toc.xpath(
+                    './/w:fldChar[@w:fldCharType="begin"]/@w:dirty', namespaces=NS
+                ),
+                ["false"],
+            )
+            self.assertFalse(toc.xpath(".//@w:fldLock", namespaces=NS))
+            self.assertEqual(
+                exported.xml("word/settings.xml").xpath(
+                    "./w:updateFields/@w:val", namespaces=NS
+                ),
+                ["false"],
+            )
+            self.assertEqual(output, (Path(tmp) / "result.docx").read_bytes())
+
+    def test_unverified_toc_keeps_pending_cache_and_allows_manual_update(self):
+        output, report = format_document(sample(), {"toc": "insert"}, preview=False)
+        self.assertEqual(report["toc_status"], "unresolved")
+        exported = Package(output)
+        toc = exported.document.xpath(
+            './/w:sdt[w:sdtPr/w:tag[@w:val="DocLintTOC"]]', namespaces=NS
+        )[0]
+        self.assertEqual(toc.xpath(".//w:t/text()", namespaces=NS)[-1], "…")
+        self.assertEqual(
+            toc.xpath('.//w:fldChar[@w:fldCharType="begin"]/@w:dirty', namespaces=NS),
+            ["true"],
+        )
+        self.assertFalse(toc.xpath(".//@w:fldLock", namespaces=NS))
+        self.assertIn("toc_pages_pending", [w["code"] for w in report["warnings"]])
+        self.assertTrue(report["integrity"]["verified"])
+
+    def test_generated_toc_defers_even_an_existing_update_on_open_setting(self):
+        source = Package(sample())
+        root = source.xml("word/settings.xml")
+        node = root.makeelement(q("updateFields"), {q("val"): "true"})
+        root.insert(0, node)
+        source.write_roots.add("word/settings.xml")
+        editor = Editor(source.serialize(), {"toc": "insert"}).run()
+        self.assertEqual(
+            editor.package.xml("word/settings.xml")
+            .find(q("updateFields"))
+            .get(q("val")),
+            "false",
+        )
+        self.assertTrue(editor.ledger.verify_bytes(editor.package.serialize()))
+
+    def test_page_numbers_do_not_force_original_fields_to_refresh_on_open(self):
+        for update_on_open in (None, "false", "true"):
+            with self.subTest(update_on_open=update_on_open):
+                source = Package(sample())
+                root = source.xml("word/settings.xml")
+                if update_on_open is not None:
+                    root.insert(
+                        0,
+                        root.makeelement(q("updateFields"), {q("val"): update_on_open}),
+                    )
+                    source.write_roots.add("word/settings.xml")
+                data = source.serialize()
+                editor = Editor(data, {"page_numbers": "arabic"}).run()
+                output = Package(editor.package.serialize())
+                self.assertEqual(
+                    canonical(output.xml("word/settings.xml")),
+                    canonical(Package(data).xml("word/settings.xml")),
+                )
+                self.assertTrue(editor.numbering_applied)
+                self.assertTrue(editor.ledger.verify_bytes(output.serialize()))
 
     @unittest.skipUnless(find_office(), "LibreOffice is required")
     def test_toc_precedes_intro_without_a_cover(self):

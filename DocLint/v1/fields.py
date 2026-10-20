@@ -304,10 +304,24 @@ def create_toc(editor):
         "replace" if editor.options.toc == "replace" else "insert",
         len(headings),
     )
-    update_fields_setting(editor)
+    # Keep the reconciled cache when opening the download. Forcing a global
+    # refresh can replace it before the reader has paginated the document.
+    # The TOC remains a normal, unlocked field for an explicit update in Word.
+    defer_field_updates(editor)
 
 
-def update_fields_setting(editor):
+def finalize_toc_cache(editor):
+    """Mark only our verified generated TOC as current; never lock its field."""
+    if editor.generated_toc is None:
+        return
+    for node in editor.generated_toc.xpath(
+        './/w:fldChar[@w:fldCharType="begin"]', namespaces=NS
+    ):
+        node.set(q("dirty"), "false")
+        editor.ledger.pairs[node].set(q("dirty"), "false")
+
+
+def defer_field_updates(editor):
     package, ledger = editor.package, editor.ledger
     if "word/settings.xml" in package.parts:
         root = ledger.track("word/settings.xml")
@@ -340,13 +354,13 @@ def update_fields_setting(editor):
             )
             ledger.append_generated(
                 root,
-                etree.Element(q("updateFields"), {q("val"): "true"}),
+                etree.Element(q("updateFields"), {q("val"): "false"}),
                 "field_update_setting",
                 at,
             )
         else:
-            node.set(q("val"), "true")
-            ledger.pairs[node].set(q("val"), "true")
+            node.set(q("val"), "false")
+            ledger.pairs[node].set(q("val"), "false")
 
 
 def _relationships(editor):
@@ -675,5 +689,6 @@ def add_page_numbers(editor):
                     0,
                 )
         editor.log("page_numbers", f"s{index + 1}", "arabic_footer")
-    update_fields_setting(editor)
+    # PAGE fields are layout-dependent and are refreshed by the reader itself.
+    # Do not force a global field update (which would also refresh the TOC).
     editor.numbering_applied = True

@@ -89,6 +89,8 @@ LibreOffice chỉ tạo PDF; DOCX do LibreOffice ghi lại không được dùng
 
 Mục lục dùng bookmark phạm vi thân bài, tránh đưa tiêu đề bìa vào khi cập nhật field. Trong chế độ layout, khoảng đệm rỗng ở ranh giới bìa/mục lục được làm sạch có kiểm soát. Paragraph ID và dấu phiên chỉnh sửa của Word không ngăn việc xóa đoạn thật sự rỗng nếu không có tham chiếu ngoài; bookmark, revision và mã được tham chiếu vẫn được bảo vệ.
 
+Khi số trang mục lục đã được đối chiếu, DOCX lưu các số đó và đánh dấu mục lục đã cập nhật. Tệp có mục lục do DocLint tạo không ép Word cập nhật toàn bộ field khi vừa mở, tránh mất kết quả trước khi Word phân trang xong. Mục lục vẫn là trường TOC có thể cập nhật: sau khi chỉnh sửa nội dung hoặc đổi phông trong Word, bấm chuột phải vào mục lục → **Update Field / Cập nhật trường**. Nếu chưa dựng được PDF, mục lục vẫn có dấu chờ và cảnh báo chưa xác minh, không được đánh dấu hoàn tất.
+
 Máy chủ phải có phông phù hợp. Linux có thể dùng Liberation Serif thay Times New Roman hoặc Carlito thay Calibri; khi phát hiện thay phông, giao diện thông báo. LibreOffice và Word có thể ngắt dòng/trang khác nhau. Bản xem trước không phải cam kết giống Word từng điểm ảnh.
 
 Kiểm tra theo trang có phạm vi: trang ít chữ, tiêu đề gần cuối trang, chữ/ảnh ngoài khổ/vùng in định vị được. Liên kết trang thay đổi chỉ dựa trên khớp văn bản đủ rõ; không suy đoán mọi vị trí bảng/ảnh. 100% thuộc tính khớp mẫu không được dùng làm điểm đạt chuẩn toàn tài liệu.
