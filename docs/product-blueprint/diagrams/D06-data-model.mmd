@@ -1,0 +1,78 @@
+erDiagram
+    JOB ||--|| SOURCE : owns
+    JOB ||--o{ RUN : contains
+    SOURCE ||--o{ ANALYSIS : analyzed_as
+    ANALYSIS ||--o{ DECISIONS : reviewed_with
+    ANALYSIS ||--o{ PLAN : basis_for
+    DECISIONS ||--o{ PLAN : supplies
+    PROFILE ||--o{ PLAN : resolves_to
+    PLAN ||--o{ OPERATION : contains
+    PLAN ||--o{ RUN : executed_as
+    RUN ||--o{ CHECK : verified_by
+    RUN ||--o{ AUDIT_EVENT : explained_by
+    RUN ||--o{ ARTIFACT : produces
+    JOB {
+        string id
+        datetime received_at
+        datetime expires_at
+        string status
+        int revision
+    }
+    SOURCE {
+        string source_id
+        string sha256
+        string original_ref
+    }
+    ANALYSIS {
+        string analysis_id
+        string schema_version
+        string analyzer_version
+        string source_sha256
+        json blocks_regions_evidence
+    }
+    DECISIONS {
+        string decision_id
+        string analysis_id
+        int revision
+        json choices_and_locks
+    }
+    PROFILE {
+        string profile_id
+        string version
+        string effective_hash
+    }
+    PLAN {
+        string plan_id
+        string fingerprint
+        string ruleset_version
+        string engine_version
+    }
+    OPERATION {
+        string operation_id
+        string rule_id_version
+        string target_ref
+        json preconditions_and_payload
+    }
+    RUN {
+        string run_id
+        int job_revision
+        string state
+        string environment_fingerprint
+    }
+    CHECK {
+        string code
+        string result
+        string scope
+    }
+    AUDIT_EVENT {
+        string event_id
+        string event_type
+        string target_ref
+        json reason_before_after
+    }
+    ARTIFACT {
+        string artifact_id
+        string run_id
+        string mime_sha256
+        boolean publishable
+    }

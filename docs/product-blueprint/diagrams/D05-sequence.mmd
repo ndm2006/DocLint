@@ -1,0 +1,46 @@
+sequenceDiagram
+    actor User as Tác giả
+    participant API as Web API
+    participant Jobs as JobService
+    participant Flow as FormatService
+    participant Plan as Planner và Guard
+    participant Apply as OOXML Applier
+    participant Gate as IntegrityGate
+    participant Render as Bộ dựng PDF
+    participant Store as Kho phiên và sản phẩm
+    User->>API: Dàn trang với lựa chọn và revision
+    API->>Jobs: Kiểm tra phiên, lựa chọn và trạng thái
+    alt Đã hết hạn hoặc yêu cầu cũ/xung đột
+        Jobs-->>API: Từ chối có lý do
+        API-->>User: Không chạy với dữ liệu sai
+    else Được tiếp nhận
+        Jobs->>Store: Gắn revision/run và xếp hàng
+        API-->>User: 202 và địa chỉ theo dõi
+        Jobs->>Flow: Bắt đầu run khi có lượt
+        Flow->>Store: Đọc bản gốc và snapshot đã gắn phiên bản
+        Flow->>Plan: Resolve profile, lập và kiểm tra kế hoạch
+        Plan-->>Flow: Operation hợp lệ và phần bỏ qua
+        Flow->>Apply: Áp dụng lên bản sao nguồn
+        Apply-->>Flow: Ứng viên và thao tác thực tế
+        Flow->>Gate: Kiểm tra trước dựng
+        alt Vi phạm toàn vẹn
+            Gate-->>Flow: Từ chối ứng viên
+            Flow->>Store: Ghi failed, không công bố sản phẩm lỗi
+        else Ứng viên hợp lệ
+            opt Cần dựng hoặc đối chiếu trang
+                Flow->>Render: Dựng/đọc PDF với timeout và hủy
+                Render-->>Flow: Dữ kiện trang hoặc lỗi có kiểm soát
+                Note over Flow,Gate: Sửa phụ thuộc trang phải thành operation bổ sung hợp lệ, không đoán số
+            end
+            Flow->>Gate: Kiểm tra gói cuối và thao tác bổ sung
+            alt Cổng cuối đạt và run còn hiệu lực
+                Flow->>Store: Công bố nguyên tử manifest, checks, audit với ready/partial
+            else Cổng cuối lỗi hoặc đã hủy/hết hạn
+                Flow->>Store: Không công bố, xử lý lỗi/dọn theo vòng đời
+            end
+        end
+        User->>API: Theo dõi và tải kết quả
+        API->>Store: Kiểm tra TTL, run hiện tại và manifest đã duyệt
+        Store-->>API: Sản phẩm được phép hoặc lý do từ chối
+        API-->>User: DOCX/PDF khi có, thay đổi và cảnh báo
+    end

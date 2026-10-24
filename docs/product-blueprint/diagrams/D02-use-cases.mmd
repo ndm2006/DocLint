@@ -1,0 +1,21 @@
+flowchart LR
+    A(("Tác giả"))
+    O(("Người vận hành"))
+    subgraph S["Ranh giới DocLint — mô hình ca sử dụng"]
+        U1(["UC-01 Tải và kiểm tra DOCX"])
+        U2(["UC-02 Xem phân tích, duyệt nhóm chưa chắc chắn"])
+        U3(["UC-03 Chọn mẫu và dàn trang"])
+        U4(["UC-04 Xem thay đổi, phần giữ và cảnh báo"])
+        U5(["UC-05 Tải sản phẩm đã kiểm chứng"])
+        U6(["UC-06 Đổi lựa chọn, chạy lại từ nguồn"])
+        U7(["UC-07 Hủy hoặc xóa phiên"])
+        U8(["UC-08 Kiểm tra năng lực và chẩn đoán"])
+    end
+    A --- U1
+    A --- U2
+    A --- U3
+    A --- U4
+    A --- U5
+    A --- U6
+    A --- U7
+    O --- U8

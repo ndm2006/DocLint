@@ -1,0 +1,11 @@
+flowchart LR
+    Author["Tác giả báo cáo<br/>Có nội dung, cần hoàn thiện hình thức"]
+    Operator["Người vận hành<br/>Theo dõi môi trường và lỗi"]
+    DocLint["DocLint<br/>Phân tích, đề xuất, dàn trang và kiểm chứng"]
+    Reader["Ứng dụng đọc DOCX/PDF<br/>Microsoft Word và trình đọc PDF"]
+    Author -->|"DOCX, mẫu và lựa chọn"| DocLint
+    DocLint -->|"Nhóm cần duyệt, tiến độ, thay đổi, cảnh báo"| Author
+    DocLint -->|"Tệp kết quả hợp lệ trong hạn phiên"| Author
+    Author -->|"Mở và kiểm tra tệp đã tải"| Reader
+    Operator -->|"Cấu hình, kiểm tra năng lực, xử lý lỗi"| DocLint
+    DocLint -->|"Trạng thái kỹ thuật giảm thông tin"| Operator

@@ -1,0 +1,28 @@
+stateDiagram-v2
+    state "Phiên còn hiệu lực" as Live {
+        [*] --> queued
+        queued --> analyzing: action analyze
+        analyzing --> review: Phân tích xong
+        review --> queued: Duyệt và gửi format
+        queued --> formatting: action format
+        formatting --> ready: Đạt yêu cầu và các cổng bắt buộc
+        formatting --> partial: Toàn vẹn đạt, có phần bỏ qua/chưa kiểm chứng
+        analyzing --> failed: Lỗi không thể tiếp tục
+        formatting --> failed: Lỗi hoặc vi phạm cổng
+        ready --> queued: Đổi lựa chọn, chạy lại từ nguồn
+        partial --> queued: Đổi lựa chọn, chạy lại từ nguồn
+    }
+    [*] --> Live: DOCX hợp lệ, tạo phiên
+    Live --> deleting: Người dùng yêu cầu hủy/xóa
+    Live --> Inaccessible: Hết TTL, chặn truy cập
+    state "Hết hạn logic — không phải field trạng thái bắt buộc" as Inaccessible
+    Inaccessible --> deleting: Bộ dọn đang chạy hoặc khi khởi động lại
+    deleting --> [*]: Đã dừng tác vụ và hoàn tất dọn
+    note right of formatting
+        Giai đoạn kiểm tra/dựng nằm trong progress.
+        Không coi mọi giai đoạn là trạng thái API mới.
+    end note
+    note right of partial
+        Có thể gồm chỉ bảo tồn toàn tệp.
+        Không đồng nghĩa đã sửa mọi yêu cầu.
+    end note

@@ -1,0 +1,13 @@
+flowchart TD
+    A["Vấn đề và ví dụ tái hiện"] --> B["Yêu cầu, phạm vi, AC và INV"]
+    B --> C{"Dùng được hợp đồng hiện có?"}
+    C -->|"Có"| E["Thực hiện thay đổi nhỏ"]
+    C -->|"Không"| D["Phân tích tác động<br/>ADR, schema và chuyển tiếp"]
+    D --> E
+    E --> F["Kiểm chứng phù hợp<br/>Nghiệp vụ, hồi quy, artifact/Word khi cần"]
+    F --> G{"Đạt AC và cổng chất lượng?"}
+    G -->|"Không"| E
+    G -->|"Có"| H["Rà soát chéo<br/>Cập nhật tài liệu chịu ảnh hưởng"]
+    H --> I["Phát hành beta có phiên bản<br/>Phạm vi, giới hạn, cách quay lại"]
+    I --> J["Quan sát lỗi và đo thử dùng"]
+    J --> A

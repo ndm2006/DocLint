@@ -1,0 +1,25 @@
+flowchart TB
+    Browser["Trình duyệt người dùng"]
+    subgraph Beta["Beta hiện tại — máy Windows phải tiếp tục chạy"]
+        Tunnel["Cloudflare Quick Tunnel<br/>HTTPS và địa chỉ tạm"]
+        Agent["cloudflared trên Windows"]
+        WinApp["DocLint FastAPI<br/>localhost:8000, một hàng đợi"]
+        WinOffice["LibreOffice cục bộ<br/>Bản sao dựng tạm"]
+        WinFiles[("Kho phiên tạm<br/>Nguồn, phân tích, sản phẩm và TTL")]
+        Tunnel --> Agent --> WinApp
+        WinApp --> WinOffice
+        WinApp --> WinFiles
+    end
+    subgraph Target["Đích máy chủ — phương án triển khai sau"]
+        Proxy["HTTPS proxy<br/>IP thật chỉ từ proxy đáng tin"]
+        subgraph Box["Container giới hạn quyền và tài nguyên"]
+            Server["DocLint API + một worker<br/>Chưa tự tăng nhiều bản chạy"]
+            LocalOffice["Bộ dựng Office giới hạn<br/>Hủy và timeout"]
+            Scratch[("Kho tạm riêng<br/>Không sao lưu tài liệu người dùng")]
+            Server --> LocalOffice
+            Server --> Scratch
+        end
+        Proxy --> Server
+    end
+    Browser -->|"HTTPS beta"| Tunnel
+    Browser -.->|"HTTPS khi đã triển khai máy chủ"| Proxy

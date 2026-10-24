@@ -1,0 +1,40 @@
+flowchart TB
+    UI["Giao diện web<br/>Nhóm duyệt và kết quả dễ hiểu"]
+    API["API / DTO<br/>Xác thực yêu cầu và phiên bản"]
+    Jobs["JobService<br/>Revision, hàng đợi, hủy và TTL"]
+    Workflow["FormatService<br/>Điều phối ca sử dụng"]
+    subgraph Domain["Nghiệp vụ tài liệu — hợp đồng đích đề xuất"]
+        Analyze["Analyzer<br/>Vai trò, phân cấp, bìa và evidence"]
+        Profiles["ProfileResolver<br/>Mẫu có phiên bản, role styles và defaults"]
+        Planner["Planner / RuleRegistry<br/>Đề xuất operation, không tự ghi XML"]
+        Guard["ProtectionPolicy / PlanValidator<br/>Vùng ảnh hưởng, tiền điều kiện, xung đột"]
+        Gate["IntegrityGate<br/>Nguồn, phần gói, đối tượng và vùng khóa"]
+        Audit["AuditProjection<br/>Đã sửa / giữ nguyên / cần kiểm tra"]
+    end
+    subgraph Ports["Cổng do nghiệp vụ/ứng dụng định nghĩa"]
+        Reader["DocumentReader"]
+        Writer["DocumentApplier"]
+        Preview["PreviewRenderer / PageInspector"]
+        Store["JobStore / ArtifactStore"]
+    end
+    subgraph Adapters["Adapter hiện thực cổng"]
+        OOXML["Đọc/ghi gói OOXML<br/>LegacyEngineAdapter trong chuyển tiếp"]
+        Office["LibreOffice + PDFium"]
+        Files["Tệp tạm + JSON + đồng hồ"]
+    end
+    UI --> API --> Jobs --> Workflow
+    Workflow --> Analyze
+    Workflow --> Profiles
+    Workflow --> Planner
+    Planner --> Guard
+    Workflow --> Gate
+    Workflow --> Audit
+    Analyze --> Reader
+    Workflow --> Writer
+    Workflow --> Preview
+    Jobs --> Store
+    Workflow --> Store
+    OOXML -.->|"hiện thực"| Reader
+    OOXML -.->|"hiện thực"| Writer
+    Office -.->|"hiện thực"| Preview
+    Files -.->|"hiện thực"| Store

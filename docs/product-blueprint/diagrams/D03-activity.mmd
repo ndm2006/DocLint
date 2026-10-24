@@ -1,0 +1,27 @@
+flowchart TD
+    A(["Nhận DOCX"]) --> B{"Đầu vào hợp lệ<br/>và trong giới hạn?"}
+    B -->|"Không"| Reject["Từ chối, giải thích lỗi"]
+    B -->|"Có"| C["Lưu nguồn bất biến<br/>Phân tích vai trò và vùng bảo vệ"]
+    C --> D{"Có nhóm cần xác nhận?"}
+    D -->|"Có"| Review["Gom nhóm: giữ nguyên / thân bài / đề mục<br/>Nhận lựa chọn có căn cứ"]
+    D -->|"Không"| Profile["Phân giải mẫu và cấu hình hiệu lực"]
+    Review --> Current{"Lựa chọn còn khớp<br/>nguồn và phân tích?"}
+    Current -->|"Không"| C
+    Current -->|"Có"| Profile
+    Profile --> Plan["Lập kế hoạch<br/>Tự sửa phần rõ; bỏ qua phần rủi ro"]
+    Plan --> Eligible{"Tiền điều kiện và<br/>xung đột hợp lệ?"}
+    Eligible -->|"Không"| Hold["Chặn thao tác xung đột<br/>Yêu cầu điều chỉnh hoặc giữ nguyên"]
+    Eligible -->|"Có"| Apply["Áp dụng lên bản sao nguồn<br/>Ghi thao tác thực tế"]
+    Apply --> Gate1{"Toàn vẹn sau sửa đạt?"}
+    Gate1 -->|"Không"| Stop["Chặn ứng viên<br/>Không cho tải bản lỗi"]
+    Gate1 -->|"Có"| Need{"Cần bản dựng / đối chiếu trang?"}
+    Need -->|"Không"| Gate2
+    Need -->|"Có"| Render["Dựng và đọc PDF có giới hạn"]
+    Render --> Available{"Có đủ dữ kiện trang?"}
+    Available -->|"Không"| Partial["Ghi phần chưa kiểm chứng<br/>Dùng fallback an toàn, không đoán số"]
+    Available -->|"Có"| Finalize["Hoàn thiện phần phụ thuộc trang<br/>qua operation bổ sung được phép"]
+    Finalize --> Gate2{"Gói cuối vượt<br/>cổng toàn vẹn?"}
+    Partial --> Gate2
+    Gate2 -->|"Không"| Stop
+    Gate2 -->|"Có"| Publish["Công bố đúng run/revision<br/>ready hoặc partial; giải thích phạm vi"]
+    Publish --> Z(["Xem, tải hoặc chạy lại từ nguồn"])

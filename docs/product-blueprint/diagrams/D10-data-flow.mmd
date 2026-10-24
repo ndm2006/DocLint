@@ -1,0 +1,33 @@
+flowchart TB
+    User["Tác giả"]
+    P1(["P1 Tiếp nhận và kiểm tra"])
+    P2(["P2 Phân tích và bảo vệ"])
+    P3(["P3 Phân giải quyết định và lập kế hoạch"])
+    P4(["P4 Áp dụng thay đổi và dựng có điều kiện"])
+    P5(["P5 Đối chiếu và quyết định công bố"])
+    P6(["P6 Cung cấp kết quả trong hạn phiên"])
+    D1[("D1 Nguồn bất biến")]
+    D2[("D2 Phân tích, quyết định, kế hoạch theo phiên")]
+    D3[("D3 Ứng viên và dữ liệu dựng chưa công bố")]
+    D4[("D4 Profile và ruleset có phiên bản")]
+    D5[("D5 Manifest, checks, audit và sản phẩm hợp lệ")]
+    User -->|"DOCX"| P1
+    P1 -->|"Nguồn hợp lệ"| D1
+    D1 -->|"Gói nguồn"| P2
+    P2 -->|"Snapshot, vùng khóa và nhóm duyệt"| D2
+    P2 -->|"Nhóm cần xác nhận"| User
+    User -->|"Lựa chọn và revision"| P3
+    D2 -->|"Snapshot"| P3
+    D4 -->|"Cấu hình đã phân giải"| P3
+    P3 -->|"Kế hoạch hợp lệ và phần bỏ qua"| D2
+    D2 -->|"Kế hoạch và khóa"| P4
+    D1 -->|"Nguồn cho lần chạy"| P4
+    P4 -->|"Ứng viên, thao tác thực tế, dữ kiện trang"| D3
+    D1 -->|"Nguồn đối chiếu"| P5
+    D2 -->|"Phạm vi được phép"| P5
+    D3 -->|"Ứng viên cuối"| P5
+    P5 -->|"Đạt cổng: manifest và sản phẩm"| D5
+    P5 -->|"Không đạt: trạng thái lỗi, không có bản lỗi được phép tải"| P6
+    D5 -->|"Kết quả đúng run"| P6
+    User -->|"Yêu cầu xem/tải"| P6
+    P6 -->|"Tệp được phép, thay đổi, cảnh báo hoặc lỗi"| User
